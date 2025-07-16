@@ -1,0 +1,44 @@
+deeplearning_inference_engine/
+├── CMakeLists.txt
+├── README.md
+├── include/
+│   ├── core/
+│   │   ├── tensor.h
+│   │   ├── layer.h
+│   │   ├── graph.h
+│   │   ├── allocator.h
+│   │   └── types.h
+│   ├── layers/
+│   │   ├── convolution.h
+│   │   ├── pooling.h
+│   │   ├── activation.h
+│   │   ├── batchnorm.h
+│   │   ├── dense.h
+│   │   └── softmax.h
+│   ├── kernels/
+│   │   ├── conv_kernels.cuh
+│   │   ├── gemm_kernels.cuh
+│   │   ├── activation_kernels.cuh
+│   │   └── reduction_kernels.cuh
+│   ├── optimizations/
+│   │   ├── quantization.h
+│   │   ├── fusion.h
+│   │   └── memory_pool.h
+│   └── utils/
+│       ├── profiler.h
+│       ├── logger.h
+│       └── model_loader.h
+├── src/
+│   ├── core/
+│   ├── layers/
+│   ├── kernels/
+│   ├── optimizations/
+│   └── utils/
+├── tests/
+│   ├── unit/
+│   └── benchmarks/
+├── models/
+│   └── converter/
+└── examples/
+    ├── resnet_inference.cpp
+    └── yolo_inference.cpp
