@@ -1,0 +1,81 @@
+# Real-Time Image Denoising Engine
+
+## Project Structure
+
+```
+real-time-image-denoising/
+├── CMakeLists.txt
+├── README.md
+├── requirements.txt
+├── include/
+│   ├── cuda_denoiser.h
+│   ├── memory_manager.h
+│   └── image_processor.h
+├── src/
+│   ├── cuda/
+│   │   ├── bilateral_filter.cu
+│   │   ├── nlm_denoiser.cu
+│   │   └── gaussian_filter.cu
+│   ├── cpp/
+│   │   ├── cuda_denoiser.cpp
+│   │   ├── memory_manager.cpp
+│   │   └── image_processor.cpp
+│   └── main.cpp
+├── python/
+│   ├── camera_interface.py
+│   ├── denoising_pipeline.py
+│   └── gui_application.py
+├── shaders/
+│   └── display.vert
+├── data/
+│   └── test_images/
+└── build/
+```
+
+## Features
+
+- **Real-time performance**: 30+ FPS on 1080p video streams
+- **Multiple algorithms**: Bilateral filter, Non-local means, Gaussian denoising
+- **Memory optimization**: Efficient GPU memory management with pooling
+- **Python integration**: Easy-to-use Python API with OpenCV
+- **Live preview**: Real-time camera feed processing with GUI
+- **Configurable parameters**: Adjustable denoising strength and algorithm selection
+
+## Requirements
+
+- NVIDIA GPU with CUDA Compute Capability 6.0+
+- CUDA Toolkit 11.0+
+- OpenCV 4.0+
+- CMake 3.18+
+- Python 3.7+
+
+## Build Instructions
+
+```bash
+# Clone and navigate to project
+cd real-time-image-denoising
+
+# Create build directory
+mkdir build && cd build
+
+# Configure with CMake
+cmake .. -DCMAKE_BUILD_TYPE=Release
+
+# Build the project
+make -j$(nproc)
+
+# Run the application
+./image_denoiser
+```
+
+## Python Usage
+
+```python
+from python.denoising_pipeline import DenoisingPipeline
+
+# Initialize denoiser
+denoiser = DenoisingPipeline()
+
+# Process camera feed
+denoiser.start_camera_processing()
+```
