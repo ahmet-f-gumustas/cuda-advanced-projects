@@ -1,0 +1,70 @@
+# Real-Time Image Denoising Engine - Python Dependencies
+# ======================================================
+
+# Core dependencies
+opencv-python>=4.5.0
+numpy>=1.19.0
+Pillow>=8.0.0
+
+# GUI dependencies (PyQt5)
+PyQt5>=5.15.0
+PyQt5-tools>=5.15.0  # For Qt Designer and other tools
+
+# Alternative GUI (if PyQt5 not available)
+# tkinter  # Usually included with Python
+
+# Development and testing
+pytest>=6.0.0
+pytest-cov>=2.10.0
+pytest-qt>=4.0.0  # For PyQt5 testing
+black>=21.0.0
+flake8>=3.8.0
+mypy>=0.800
+
+# Documentation
+sphinx>=3.0.0
+sphinx-rtd-theme>=0.5.0
+
+# Performance monitoring
+psutil>=5.7.0
+memory-profiler>=0.57.0
+
+# Video processing (optional)
+imageio>=2.9.0
+imageio-ffmpeg>=0.4.0
+
+# Scientific computing (optional)
+scipy>=1.6.0
+scikit-image>=0.18.0
+
+# Jupyter notebook support (optional)
+jupyter>=1.0.0
+matplotlib>=3.3.0
+
+# CUDA Python bindings (optional)
+cupy-cuda12x>=10.0.0  # For CUDA 12.x
+# cupy-cuda11x>=10.0.0  # For CUDA 11.x
+# pycuda>=2021.1  # Alternative CUDA Python bindings
+
+# Benchmarking and profiling
+line-profiler>=3.0.0
+cProfile
+
+# Image quality metrics
+lpips>=0.1.3  # Learned Perceptual Image Patch Similarity
+pytorch-fid>=0.2.1  # Frechet Inception Distance
+
+# Configuration management
+pyyaml>=5.4.0
+configparser>=5.0.0
+
+# Logging and monitoring
+tqdm>=4.60.0
+rich>=10.0.0  # Enhanced terminal output
+
+# Type hints
+typing-extensions>=3.7.0
+
+# Parallel processing
+joblib>=1.0.0
+multiprocessing-logging>=0.3.0
