@@ -64,6 +64,11 @@ public:
     const std::vector<NodeId>& input_nodes() const { return input_nodes_; }
     const std::vector<NodeId>& output_nodes() const { return output_nodes_; }
     
+    // Friend classes for optimization
+    friend class QuantizationOptimizer;
+    friend class LayerFusionOptimizer;
+    friend class ConstantFoldingOptimizer;
+    
     // Debug
     void print_graph() const;
     std::string to_dot() const;
