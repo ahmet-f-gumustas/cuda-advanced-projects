@@ -46,6 +46,7 @@ A high-performance, GPU-accelerated image denoising engine designed for real-tim
 - **OpenCV**: 4.0+ with CUDA support
 - **CMake**: 3.18+
 - **Python**: 3.7+ (for Python interface)
+- **PyQt5**: 5.15+ (for GUI application)
 - **C++ Compiler**: GCC 9+, MSVC 2019+, or Clang 10+
 
 ### Tested Platforms
@@ -69,7 +70,7 @@ sudo apt install build-essential cmake git
 sudo apt install libopencv-dev libopencv-contrib-dev
 
 # Install Python dependencies
-sudo apt install python3-dev python3-pip
+sudo apt install python3-dev python3-pip python3-pyqt5 python3-pyqt5-dev
 pip3 install -r requirements.txt
 ```
 
@@ -79,7 +80,7 @@ pip3 install -r requirements.txt
 # Install CUDA Toolkit from NVIDIA website
 # Install OpenCV (pre-built binaries or compile from source)
 
-# Install Python dependencies
+# Install Python dependencies (including PyQt5)
 pip install -r requirements.txt
 ```
 
@@ -183,7 +184,7 @@ print(f"Processing time: {stats.avg_latency_ms:.2f}ms")
 # Python version  
 python3 denoising_pipeline.py --camera --algorithm bilateral
 
-# GUI version
+# Modern PyQt5 GUI version
 python3 denoising_pipeline.py --gui
 ```
 
