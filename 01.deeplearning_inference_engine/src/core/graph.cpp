@@ -1,5 +1,6 @@
 #include "../../include/core/graph.h"
 #include "../../include/utils/logger.h"
+#include "../../include/utils/profiler.h"
 #include <queue>
 #include <stack>
 #include <algorithm>
@@ -238,17 +239,19 @@ std::vector<Tensor> ComputationGraph::forward(const std::vector<Tensor>& inputs,
         }
         
         // Execute layer
-        PROFILE_LAYER(node.name, node.layer->type());
-        
-        std::vector<Tensor> node_outputs;
-        if (node_inputs.size() == 1) {
-            node_outputs = {node.layer->forward(node_inputs[0], ctx)};
-        } else {
-            node_outputs = node.layer->forward(node_inputs, ctx);
+        {
+            ProfileScope scope(node.name, node.layer->type());
+            
+            std::vector<Tensor> node_outputs;
+            if (node_inputs.size() == 1) {
+                node_outputs = {node.layer->forward(node_inputs[0], ctx)};
+            } else {
+                node_outputs = node.layer->forward(node_inputs, ctx);
+            }
+            
+            // Store output (assuming single output per node for now)
+            activations[node_id] = node_outputs[0];
         }
-        
-        // Store output (assuming single output per node for now)
-        activations[node_id] = node_outputs[0];
         
         // Free memory of intermediate activations that are no longer needed
         for (NodeId input_id : node.inputs) {
@@ -366,7 +369,22 @@ void LayerFusionOptimizer::optimize(ComputationGraph& graph) {
 
 void QuantizationOptimizer::optimize(ComputationGraph& graph) {
     // Quantize eligible layers
-    for (auto& [id, node] : graph.nodes_) {
+    // Get all node IDs first
+    std::vector<ComputationGraph::NodeId> node_ids;
+    for (const auto& input_id : graph.input_nodes()) {
+        node_ids.push_back(input_id);
+    }
+    for (const auto& output_id : graph.output_nodes()) {
+        if (std::find(node_ids.begin(), node_ids.end(), output_id) == node_ids.end()) {
+            node_ids.push_back(output_id);
+        }
+    }
+    
+    // Use topological sort to get all nodes
+    auto all_nodes = graph.topological_sort();
+    
+    for (auto node_id : all_nodes) {
+        auto& node = graph.get_node(node_id);
         if (node.layer->supports_quantization()) {
             LOG_DEBUG("Quantizing layer: %s", node.name.c_str());
             node.layer->quantize(bits_);
