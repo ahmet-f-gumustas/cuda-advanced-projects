@@ -1,5 +1,6 @@
 {
     "files.associations": {
         "chrono": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/red/git-projects/cuda-advanced-projects/01.deeplearning_inference_engine"
 }
