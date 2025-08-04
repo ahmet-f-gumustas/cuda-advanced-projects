@@ -11,24 +11,31 @@ efficientnet-cpp/
 │   ├── common/
 │   │   ├── cuda_utils.h
 │   │   ├── timer.h
-│   │   └── logging.h
+│   │   └── logger.h
 │   ├── io/
-│   │   └── image_decoder.h
+│   │   ├── image_decoder.h
+│   │   └── nvjpeg_decoder.h
 │   ├── preprocess/
 │   │   └── preprocess.h
-│   └── postprocess/
-│       └── postprocess.h
+│   ├── postprocess/
+│   │   └── postprocess.h
+│   └── backends/
+│       ├── backend_base.h
+│       ├── ort_backend.h
+│       └── tensorrt_backend.h
 ├── src/
 │   ├── common/
 │   │   ├── cuda_utils.cpp
 │   │   ├── timer.cpp
-│   │   └── logging.cpp
+│   │   └── logger.cpp
 │   ├── io/
-│   │   ├── jpeg_decode_nvjpeg.cpp
-│   │   └── image_decode_stb.cpp
+│   │   ├── image_decoder.cpp
+│   │   └── nvjpeg_decoder.cpp
 │   ├── preprocess/
+│   │   ├── preprocess.cpp
 │   │   └── resize_norm.cu
 │   ├── postprocess/
+│   │   ├── postprocess.cpp
 │   │   └── softmax_topk.cu
 │   └── backends/
 │       ├── ort/
@@ -37,7 +44,7 @@ efficientnet-cpp/
 │       │   ├── trt_backend.cpp
 │       │   └── int8_calibrator.cpp
 │       └── cudnn/
-│           └── cudnn_mbconv.cpp
+│           └── cudnn_kernels.cpp
 ├── apps/
 │   ├── classify_ort.cpp
 │   ├── classify_trt.cpp
@@ -48,4 +55,3 @@ efficientnet-cpp/
 │   ├── download_ort.sh
 │   └── calib_list.txt
 └── data/
-    └── cat.jpg
