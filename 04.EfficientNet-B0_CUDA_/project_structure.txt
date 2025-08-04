@@ -1,0 +1,51 @@
+efficientnet-cpp/
+├── CMakeLists.txt
+├── README.md
+├── cmake/
+│   └── FindONNXRuntime.cmake
+├── third_party/
+│   └── onnxruntime/
+│       ├── include/
+│       └── lib/
+├── include/
+│   ├── common/
+│   │   ├── cuda_utils.h
+│   │   ├── timer.h
+│   │   └── logging.h
+│   ├── io/
+│   │   └── image_decoder.h
+│   ├── preprocess/
+│   │   └── preprocess.h
+│   └── postprocess/
+│       └── postprocess.h
+├── src/
+│   ├── common/
+│   │   ├── cuda_utils.cpp
+│   │   ├── timer.cpp
+│   │   └── logging.cpp
+│   ├── io/
+│   │   ├── jpeg_decode_nvjpeg.cpp
+│   │   └── image_decode_stb.cpp
+│   ├── preprocess/
+│   │   └── resize_norm.cu
+│   ├── postprocess/
+│   │   └── softmax_topk.cu
+│   └── backends/
+│       ├── ort/
+│       │   └── ort_backend.cpp
+│       ├── tensorrt/
+│       │   ├── trt_backend.cpp
+│       │   └── int8_calibrator.cpp
+│       └── cudnn/
+│           └── cudnn_mbconv.cpp
+├── apps/
+│   ├── classify_ort.cpp
+│   ├── classify_trt.cpp
+│   └── bench_cudnn.cpp
+├── models/
+├── tools/
+│   ├── export_to_onnx.py
+│   ├── download_ort.sh
+│   └── calib_list.txt
+└── data/
+    └── cat.jpg
