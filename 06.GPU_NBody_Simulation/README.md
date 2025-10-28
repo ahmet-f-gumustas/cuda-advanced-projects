@@ -79,6 +79,25 @@ where:
 - **C++ Compiler**: GCC 9+, Clang 10+, or MSVC 2019+
 - **Operating System**: Ubuntu 20.04+, Windows 10+, or equivalent
 
+## ✨ Visual Mode (NEW!)
+
+This project now includes **real-time OpenGL visualization**!
+
+![N-Body Simulation](https://img.shields.io/badge/OpenGL-3.3-blue.svg)
+
+### Features:
+- **Interactive 3D View**: Rotate, pan, and zoom the simulation
+- **Real-time Rendering**: See gravitational interactions as they happen
+- **Color-coded Particles**: Mass visualization with gradient colors
+- **Smooth Performance**: 30-60 FPS even with thousands of bodies
+- **Mouse Controls**: Intuitive camera manipulation
+
+### Quick Start (Visual Mode):
+```bash
+cd build
+./nbody_visual -n 2048 -init galaxy
+```
+
 ## 🛠️ Installation
 
 ### 1. Verify CUDA Installation
@@ -122,7 +141,53 @@ make -j$(nproc)
 
 ## 📖 Usage
 
-### Command Line Options
+### Two Modes Available
+
+#### 1. **Benchmark Mode** (`nbody_sim`)
+Command-line only, focuses on performance comparison of different kernels.
+
+#### 2. **Visual Mode** (`nbody_visual`) - **NEW!**
+Real-time 3D OpenGL visualization with interactive camera controls.
+
+### Visual Mode Usage
+
+```bash
+# Basic usage
+./nbody_visual
+
+# Galaxy collision with 4096 bodies
+./nbody_visual -n 4096 -init galaxy
+
+# Spherical cluster
+./nbody_visual -n 2048 -init cluster -dt 0.005
+
+# Custom window size
+./nbody_visual -n 1024 -width 1920 -height 1080
+```
+
+#### Visual Mode Controls:
+- **Left Mouse Button + Drag**: Rotate camera
+- **Right Mouse Button + Drag**: Pan camera
+- **Mouse Scroll Wheel**: Zoom in/out
+- **W/S Keys**: Zoom in/out (alternative)
+- **R Key**: Reset camera to default position
+- **ESC**: Exit simulation
+
+#### Visual Mode Options:
+```bash
+./nbody_visual [options]
+
+Options:
+  -n <num>        Number of bodies (default: 2048)
+  -dt <float>     Time step (default: 0.01)
+  -s <float>      Softening factor (default: 0.1)
+  -init <name>    Initialization: random, cluster, galaxy (default: galaxy)
+  -width <num>    Window width (default: 1280)
+  -height <num>   Window height (default: 720)
+  -h, --help      Show help message
+```
+
+### Benchmark Mode Command Line Options
 
 ```bash
 ./nbody_sim [options]
@@ -311,9 +376,16 @@ Should remain stationary (momentum conservation):
 CM = Σ(m_i * r_i) / Σ(m_i)
 ```
 
-## 🎯 Advanced Optimizations (Future Work)
+## 🎯 Advanced Optimizations
 
-### Potential Improvements
+### Already Implemented ✅
+
+1. ✅ **Real-time OpenGL Visualization**: Interactive 3D rendering with camera controls
+2. ✅ **Register-Tiled Kernels**: Maximum GPU performance with vectorized loads
+3. ✅ **Shared Memory Optimization**: Tile-based data reuse
+4. ✅ **Multiple Initialization Modes**: Random, cluster, galaxy collision scenarios
+
+### Potential Future Improvements
 
 1. **Barnes-Hut Algorithm**: O(N log N) complexity using octree
 2. **Fast Multipole Method**: O(N) complexity for large N
@@ -321,8 +393,8 @@ CM = Σ(m_i * r_i) / Σ(m_i)
 4. **Multi-GPU**: Distribute bodies across multiple GPUs
 5. **Adaptive Time Stepping**: Variable dt based on dynamics
 6. **Higher-Order Integrators**: Leapfrog, Runge-Kutta 4
-7. **Visualization**: Real-time OpenGL rendering
-8. **Collision Detection**: Handle body collisions/mergers
+7. **Collision Detection**: Handle body collisions/mergers
+8. **Export Animation**: Save frames as video or image sequence
 
 ## 🐛 Troubleshooting
 
