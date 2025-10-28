@@ -10,6 +10,10 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 # Find CUDA package (require 12.6+)
 find_package(CUDAToolkit 12.6 REQUIRED)
 
+# Find OpenGL and GLFW for visualization
+find_package(OpenGL REQUIRED)
+find_package(glfw3 REQUIRED)
+
 # CUDA architecture - RTX 4070 = sm_89
 # Set multiple architectures for compatibility
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -49,6 +53,38 @@ set_target_properties(nbody_sim PROPERTIES
 
 # Install target
 install(TARGETS nbody_sim DESTINATION bin)
+
+# ============================================================================
+# Visual N-Body Simulation with OpenGL
+# ============================================================================
+
+# Visual application sources
+set(VISUAL_SOURCES
+    src/main_visual.cu
+    src/nbody_kernels.cu
+    src/renderer.cpp
+)
+
+# Visual executable
+add_executable(nbody_visual ${VISUAL_SOURCES})
+
+# Link libraries for visual version
+target_link_libraries(nbody_visual
+    CUDA::cudart
+    CUDA::cuda_driver
+    OpenGL::GL
+    glfw
+    ${CMAKE_DL_LIBS}
+)
+
+# Set CUDA properties
+set_target_properties(nbody_visual PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+# Install visual target
+install(TARGETS nbody_visual DESTINATION bin)
 
 # Print configuration
 message(STATUS "==================================================")
