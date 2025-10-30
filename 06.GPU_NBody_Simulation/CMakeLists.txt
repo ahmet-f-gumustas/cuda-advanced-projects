@@ -86,6 +86,81 @@ set_target_properties(nbody_visual PROPERTIES
 # Install visual target
 install(TARGETS nbody_visual DESTINATION bin)
 
+# ============================================================================
+# Python Bindings with pybind11
+# ============================================================================
+
+option(BUILD_PYTHON_BINDINGS "Build Python bindings" OFF)
+
+if(BUILD_PYTHON_BINDINGS)
+    # Find Python
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
+    # Find pybind11
+    find_package(pybind11 CONFIG QUIET)
+
+    if(NOT pybind11_FOUND)
+        # Try to find pybind11 via Python
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" -m pybind11 --cmakedir
+            OUTPUT_VARIABLE pybind11_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        find_package(pybind11 CONFIG REQUIRED)
+    endif()
+
+    if(pybind11_FOUND)
+        message(STATUS "Found pybind11: ${pybind11_VERSION}")
+
+        # Python module sources (need to be compiled separately without main.cu)
+        set(PYTHON_BINDINGS_SOURCES
+            python/nbody_bindings.cpp
+            src/nbody_kernels.cu
+            src/nbody_helper.cpp
+        )
+
+        # Create shared library for Python bindings
+        pybind11_add_module(nbody_python MODULE ${PYTHON_BINDINGS_SOURCES})
+
+        # Include directories
+        target_include_directories(nbody_python PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CUDAToolkit_INCLUDE_DIRS}
+        )
+
+        # Link CUDA libraries
+        target_link_libraries(nbody_python PRIVATE
+            CUDA::cudart
+            CUDA::cuda_driver
+        )
+
+        # Set properties
+        set_target_properties(nbody_python PROPERTIES
+            OUTPUT_NAME "nbody_cuda"
+            CUDA_SEPARABLE_COMPILATION OFF
+            CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
+            PREFIX "${PYTHON_MODULE_PREFIX}"
+            SUFFIX "${PYTHON_MODULE_EXTENSION}"
+            POSITION_INDEPENDENT_CODE ON
+            LINKER_LANGUAGE CXX
+        )
+
+        # Ensure CUDA runtime is linked properly
+        set_property(TARGET nbody_python PROPERTY CUDA_RUNTIME_LIBRARY Static)
+
+        # Install to Python site-packages
+        install(TARGETS nbody_python
+                LIBRARY DESTINATION ${Python3_SITEARCH})
+
+        message(STATUS "Python bindings will be built")
+        message(STATUS "Python executable: ${Python3_EXECUTABLE}")
+        message(STATUS "Python version: ${Python3_VERSION}")
+    else()
+        message(WARNING "pybind11 not found. Python bindings will not be built.")
+    endif()
+endif()
+
 # Print configuration
 message(STATUS "==================================================")
 message(STATUS "GPU N-Body Simulation Configuration")
