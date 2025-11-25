@@ -19,46 +19,53 @@ CNN_Context* create_cnn_context(int input_width, int input_height) {
     int output_size = ctx->output_width * ctx->output_height * sizeof(float);
     int filter_size = 3 * 3 * sizeof(float);
 
-    cudaMalloc(&ctx->d_input, input_size);
-    cudaMalloc(&ctx->d_filter, filter_size);
-    cudaMalloc(&ctx->d_output, output_size);
-    cudaMalloc(&ctx->d_temp, output_size);
+    CUDA_CHECK(cudaMalloc(&ctx->d_input, input_size));
+    CUDA_CHECK(cudaMalloc(&ctx->d_filter, filter_size));
+    CUDA_CHECK(cudaMalloc(&ctx->d_bias, sizeof(float)));  // Single bias value
+    CUDA_CHECK(cudaMalloc(&ctx->d_output, output_size));
+    CUDA_CHECK(cudaMalloc(&ctx->d_temp, output_size));
 
     return ctx;
 }
 
 void destroy_cnn_context(CNN_Context* ctx) {
     if (ctx) {
-        cudaFree(ctx->d_input);
-        cudaFree(ctx->d_filter);
-        cudaFree(ctx->d_output);
-        cudaFree(ctx->d_temp);
+        CUDA_CHECK(cudaFree(ctx->d_input));
+        CUDA_CHECK(cudaFree(ctx->d_filter));
+        CUDA_CHECK(cudaFree(ctx->d_bias));
+        CUDA_CHECK(cudaFree(ctx->d_output));
+        CUDA_CHECK(cudaFree(ctx->d_temp));
         free(ctx);
     }
 }
 
 void set_input_data(CNN_Context* ctx, const float* h_input, int size) {
-    cudaMemcpy(ctx->d_input, h_input, size * sizeof(float),
-               cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(ctx->d_input, h_input, size * sizeof(float),
+               cudaMemcpyHostToDevice));
 }
 
 void set_filter_data(CNN_Context* ctx, const float* h_filter, int size) {
-    cudaMemcpy(ctx->d_filter, h_filter, size * sizeof(float),
-               cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(ctx->d_filter, h_filter, size * sizeof(float),
+               cudaMemcpyHostToDevice));
+}
+
+void set_bias_data(CNN_Context* ctx, const float* h_bias, int size) {
+    CUDA_CHECK(cudaMemcpy(ctx->d_bias, h_bias, size * sizeof(float),
+               cudaMemcpyHostToDevice));
 }
 
 void get_output_data(CNN_Context* ctx, float* h_output, int size) {
-    cudaMemcpy(h_output, ctx->d_output, size * sizeof(float),
-               cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(h_output, ctx->d_output, size * sizeof(float),
+               cudaMemcpyDeviceToHost));
 }
 
 void run_cnn_forward(CNN_Context* ctx) {
     // CUDA events ile timing
     cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
 
-    cudaEventRecord(start);
+    CUDA_CHECK(cudaEventRecord(start));
 
     // Step 1: Convolution
     launch_conv2d(
@@ -88,16 +95,16 @@ void run_cnn_forward(CNN_Context* ctx) {
         pooled_height
     );
 
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+    CUDA_CHECK(cudaEventRecord(stop));
+    CUDA_CHECK(cudaEventSynchronize(stop));
 
     // Süreyi hesapla (milisaniye)
     float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+    CUDA_CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
     ctx->last_inference_time_ms = milliseconds;
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    CUDA_CHECK(cudaEventDestroy(start));
+    CUDA_CHECK(cudaEventDestroy(stop));
 }
 
 float get_last_inference_time(CNN_Context* ctx) {
