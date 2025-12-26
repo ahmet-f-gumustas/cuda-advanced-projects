@@ -71,7 +71,8 @@ def export_to_onnx(
     opset_version: int = 17,
     dynamic_batch: bool = False,
     simplify: bool = True,
-    fp16: bool = False
+    fp16: bool = False,
+    save_pt: bool = True
 ):
     """Export model to ONNX format."""
 
@@ -82,6 +83,17 @@ def export_to_onnx(
     # Load model
     model, config = get_model(model_name, pretrained=True)
     model.eval()
+
+    # Save PyTorch model (.pt) before ONNX export
+    if save_pt:
+        pt_path = output_path.replace('.onnx', '.pt')
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'model_name': model_name,
+            'config': config
+        }, pt_path)
+        print(f"PyTorch model saved to: {pt_path}")
+        print(f"PyTorch file size: {os.path.getsize(pt_path) / 1024 / 1024:.2f} MB")
 
     # Use config input size if available
     if 'input_size' in config:
@@ -220,6 +232,11 @@ def main():
         action='store_true',
         help='Also export FP16 version'
     )
+    parser.add_argument(
+        '--no-pt',
+        action='store_true',
+        help='Skip saving PyTorch .pt model'
+    )
 
     args = parser.parse_args()
 
@@ -237,7 +254,8 @@ def main():
         opset_version=args.opset,
         dynamic_batch=args.dynamic,
         simplify=not args.no_simplify,
-        fp16=args.fp16
+        fp16=args.fp16,
+        save_pt=not args.no_pt
     )
 
 
