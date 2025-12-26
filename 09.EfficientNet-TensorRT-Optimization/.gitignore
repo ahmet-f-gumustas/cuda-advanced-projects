@@ -1,0 +1,39 @@
+# Model files
+models/*.onnx
+models/*.pt
+models/*.engine
+*.onnx
+*.pt
+*.engine
+
+# Build directory
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+dist/
+eggs/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test images (optional - remove if you want to keep them)
+data/*.jpg
+data/*.png
+data/*.jpeg
+!data/imagenet_classes.txt
+
+# Calibration data
+data/calibration_images/
