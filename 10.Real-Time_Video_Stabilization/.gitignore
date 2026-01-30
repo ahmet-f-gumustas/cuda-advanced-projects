@@ -1,0 +1,49 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# Compiled objects
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+
+# Executables
+video_stabilizer
+*.exe
+
+# CUDA compiled files
+*.cubin
+*.fatbin
+*.ptx
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test data (keep structure, ignore large files)
+data/*.mp4
+data/*.avi
+data/*.mov
+data/*.mkv
+!data/.gitkeep
+
+# Output files
+output*.mp4
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
