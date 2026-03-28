@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://www.kernel.org/)
 
-A collection of **14 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, and generative AI — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
+A collection of **15 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, generative AI, and speech recognition — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
 
 [Getting Started](#getting-started) · [Projects](#projects) · [Benchmarks](#performance-benchmarks) · [Learning Path](#learning-path)
 
@@ -50,6 +50,7 @@ This repository demonstrates GPU programming techniques at increasing levels of 
 | 11 | [LSTM CUDA Implementation](11.LSTM-CUDA-Implementation/) | Full LSTM with BPTT, gradient clipping, Xavier init — all custom kernels | BPTT, SGD, Binary I/O |
 | 13 | [GPT Transformer Inference](13.GPT-Transformer-Inference/) | GPT decoder with KV Cache, GQA, RoPE, SwiGLU, INT8, speculative decoding | cuBLAS, GQA, Speculative Decoding |
 | 14 | [Stable Diffusion CUDA](14.Stable-Diffusion-CUDA/) | Full pipeline: CLIP encoder + UNet + VAE decoder + DDIM scheduler | cuDNN, cuBLAS, cuRAND |
+| 15 | [Whisper Speech Recognition](15.Whisper-Speech-Recognition-CUDA/) | Whisper-style ASR: Mel spectrogram + Encoder + Decoder + Beam search | cuBLAS, cuFFT, Beam Search |
 
 ### Computer Vision & Video Processing
 
@@ -88,6 +89,12 @@ All measurements on **RTX 4070 Laptop** (SM 8.9, 7836 MB VRAM) unless noted othe
 | EfficientNet-B0 | FP16 | 0.8 ms | 1250 img/s | 09 |
 | GPT (6L-512D) | FP16 | 0.26 ms/tok | 3842 tok/s | 13 |
 | GPT (6L-512D) | INT8 | 0.22 ms/tok | 4514 tok/s | 13 |
+
+### Speech Recognition
+
+| Config | Audio | Total Latency | Real-time Factor | Project |
+|--------|-------|---------------|------------------|---------|
+| 4L-512D-8H | 3.0 s | 54.6 ms | 55x | 15 |
 
 ### Real-Time Processing
 
@@ -212,6 +219,7 @@ Level 1: Foundations                Level 2: Optimization              Level 3: 
                                    11. LSTM Implementation             01. DL Inference Engine
                                    12. DQN Implementation              13. GPT Transformer
                                                                        14. Stable Diffusion
+                                                                       15. Whisper ASR
 ```
 
 | Level | Focus | You will learn |
@@ -243,10 +251,10 @@ compute-sanitizer --tool racecheck ./my_app
 ## Repository Statistics
 
 ```
-Projects                14
-Custom CUDA kernels     120+
-Lines of CUDA/C++       35,000+
-Benchmark data points   200+
+Projects                15
+Custom CUDA kernels     140+
+Lines of CUDA/C++       38,000+
+Benchmark data points   220+
 GPU architectures       Turing → Ada Lovelace (SM 7.5–8.9)
 ```
 
