@@ -327,7 +327,6 @@ __global__ void masked_softmax_kernel(float* data, int rows, int cols) {
     float* row_data = data + row * cols;
 
     // row index determines the mask boundary
-    int head_size = rows / (rows / cols + 1); // approximate
     int token_idx = row % cols;
 
     // Apply causal mask: set future positions to -inf
@@ -492,7 +491,6 @@ __global__ void sinusoidal_pe_kernel(float* pe, int max_len, int d_model) {
 
     int pos = idx / d_model;
     int i = idx % d_model;
-    int half = d_model / 2;
 
     float angle = pos / powf(10000.0f, (2.0f * (i / 2)) / d_model);
     pe[idx] = (i % 2 == 0) ? sinf(angle) : cosf(angle);
