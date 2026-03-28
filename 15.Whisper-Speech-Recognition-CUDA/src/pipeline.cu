@@ -29,12 +29,13 @@ EncoderConfig WhisperConfig::get_encoder_config() const {
 }
 
 DecoderConfig WhisperConfig::get_decoder_config() const {
+    CharTokenizer tok;
     DecoderConfig dc;
     dc.d_model = d_model;
     dc.n_heads = n_heads;
     dc.n_layers = decoder_layers;
     dc.ffn_dim = ffn_dim;
-    dc.vocab_size = tokenizer_.vocab_size();
+    dc.vocab_size = tok.vocab_size();
     dc.max_seq_len = max_text_len;
     return dc;
 }
@@ -61,7 +62,13 @@ WhisperPipeline::WhisperPipeline(const WhisperConfig& cfg) : config(cfg) {
     dc.ffn_dim = cfg.ffn_dim;
     dc.vocab_size = tokenizer_.vocab_size();
     dc.max_seq_len = cfg.max_text_len;
-    BeamConfig bc = cfg.get_beam_config();
+    BeamConfig bc;
+    bc.beam_size = cfg.beam_size;
+    bc.max_length = cfg.max_text_len;
+    bc.length_penalty = cfg.length_penalty;
+    bc.temperature = cfg.temperature;
+    bc.eos_token = tokenizer_.eos_token();
+    bc.bos_token = tokenizer_.bos_token();
 
     mel_ = new MelSpectrogram(mc);
     encoder_ = new WhisperEncoder(ec);
