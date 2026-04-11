@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://www.kernel.org/)
 
-A collection of **15 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, generative AI, and speech recognition — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
+A collection of **16 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, generative AI, speech recognition, and 3D rendering — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
 
 [Getting Started](#getting-started) · [Projects](#projects) · [Benchmarks](#performance-benchmarks) · [Learning Path](#learning-path)
 
@@ -73,6 +73,12 @@ This repository demonstrates GPU programming techniques at increasing levels of 
 |---|---------|-------------|----------|
 | 12 | [DQN CUDA Implementation](12.DQN-CUDA-Implementation/) | Deep Q-Network on CartPole — 13 custom kernels, Adam optimizer on GPU | Experience Replay, Huber Loss |
 
+### 3D Rendering & Neural Graphics
+
+| # | Project | Description | Key Tech |
+|---|---------|-------------|----------|
+| 16 | [3D Gaussian Splatting](16.3D-Gaussian-Splatting-CUDA/) | Tile-based rasterizer with EWA splatting, SH colors, CUB radix sort, OpenGL viewer | CUB, OpenGL, GLFW, SH |
+
 ---
 
 ## Performance Benchmarks
@@ -133,7 +139,7 @@ All measurements on **RTX 4070 Laptop** (SM 8.9, 7836 MB VRAM) unless noted othe
 - Shared memory tiling
 - Register tiling
 - Coalesced access patterns
-- Memory pooling
+- Memory pooling / SoA layout
 - Pinned (page-locked) memory
 
 </td>
@@ -155,12 +161,14 @@ All measurements on **RTX 4070 Laptop** (SM 8.9, 7836 MB VRAM) unless noted othe
 - Speculative decoding
 - Classifier-free guidance
 - Experience replay buffers
+- Tile-based rasterization
+- EWA splatting + SH colors
 
 </td>
 </tr>
 </table>
 
-**Libraries used across projects:** cuBLAS, cuBLASLt, cuDNN, cuFFT, cuRAND, TensorRT, ONNX Runtime, NVJPEG, OpenGL, OpenCV
+**Libraries used across projects:** cuBLAS, cuBLASLt, cuDNN, cuFFT, cuRAND, CUB, TensorRT, ONNX Runtime, NVJPEG, OpenGL, GLFW, OpenCV
 
 ---
 
@@ -220,6 +228,7 @@ Level 1: Foundations                Level 2: Optimization              Level 3: 
                                    12. DQN Implementation              13. GPT Transformer
                                                                        14. Stable Diffusion
                                                                        15. Whisper ASR
+                                                                       16. 3D Gaussian Splatting
 ```
 
 | Level | Focus | You will learn |
@@ -251,9 +260,9 @@ compute-sanitizer --tool racecheck ./my_app
 ## Repository Statistics
 
 ```
-Projects                15
-Custom CUDA kernels     140+
-Lines of CUDA/C++       38,000+
+Projects                16
+Custom CUDA kernels     150+
+Lines of CUDA/C++       40,000+
 Benchmark data points   220+
 GPU architectures       Turing → Ada Lovelace (SM 7.5–8.9)
 ```
