@@ -119,6 +119,30 @@ public:
         return getProjectionMatrix() * getViewMatrix();
     }
 
+    // View matrix for rasterization (3DGS convention: +Z forward, +Y down).
+    // Negates rows 1 and 2 of the standard OpenGL view matrix so that
+    // visible points have view_pos.z > 0 and image-space Y grows downward.
+    Mat4 getRasterViewMatrix() const {
+        Mat4 view = getViewMatrix();
+        for (int col = 0; col < 4; col++) {
+            view.at(1, col) = -view.at(1, col);
+            view.at(2, col) = -view.at(2, col);
+        }
+        return view;
+    }
+
+    // FOV helpers
+    float getTanFovX() const {
+        float fov_rad = config_.fov_y * M_PI_F / 180.0f;
+        float tan_half_fov_y = tanf(fov_rad * 0.5f);
+        float aspect = (float)config_.width / (float)config_.height;
+        return aspect * tan_half_fov_y;
+    }
+    float getTanFovY() const {
+        float fov_rad = config_.fov_y * M_PI_F / 180.0f;
+        return tanf(fov_rad * 0.5f);
+    }
+
     // Focal lengths in pixels
     float getFocalX() const {
         float fov_rad = config_.fov_y * M_PI_F / 180.0f;
