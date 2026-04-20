@@ -2,6 +2,7 @@
 #include "gaussian.h"
 #include "camera.h"
 #include "splatting_kernels.cuh"
+#include "renderer.h"
 
 int tests_passed = 0;
 int tests_failed = 0;
@@ -286,8 +287,87 @@ void test_sort_ordering() {
 }
 
 // ============================================================
+// Phase 3: Renderer class tests
+// ============================================================
+
+void test_renderer_basic() {
+    TEST("Renderer basic render");
+    Camera cam;
+    CameraConfig cfg;
+    cfg.width = 256; cfg.height = 256; cfg.fov_y = 60.0f;
+    cam.setConfig(cfg);
+
+    GaussianModel model;
+    float3 bmin = {-2, -2, -2}, bmax = {2, 2, 2};
+    model.generateRandom(1000, 3, bmin, bmax, 77);
+
+    Renderer renderer;
+    renderer.init(256, 256);
+    renderer.setBackgroundColor(make_float3(0.0f, 0.0f, 0.0f));
+
+    float3* d_fb = renderer.render(model, cam);
+    auto& t = renderer.getLastTimings();
+
+    if (d_fb != nullptr && t.num_rendered > 0 && t.total_ms > 0.0f) {
+        printf("(%d pairs, %.2f ms) ", t.num_rendered, t.total_ms);
+        PASS();
+    } else {
+        FAIL("render produced no output");
+    }
+}
+
+void test_renderer_resize() {
+    TEST("Renderer resize");
+    Renderer renderer;
+    renderer.init(256, 256);
+    if (renderer.getWidth() != 256 || renderer.getHeight() != 256) {
+        FAIL("init dims wrong"); return;
+    }
+    renderer.resize(512, 384);
+    if (renderer.getWidth() == 512 && renderer.getHeight() == 384) {
+        PASS();
+    } else {
+        FAIL("resize did not take effect");
+    }
+}
+
+void test_renderer_multi_frame() {
+    TEST("Renderer multi-frame consistency (same scene, same camera)");
+    Camera cam;
+    CameraConfig cfg;
+    cfg.width = 128; cfg.height = 128; cfg.fov_y = 60.0f;
+    cam.setConfig(cfg);
+
+    GaussianModel model;
+    float3 bmin = {-1, -1, -1}, bmax = {1, 1, 1};
+    model.generateRandom(200, 2, bmin, bmax, 99);
+
+    Renderer renderer;
+    renderer.init(128, 128);
+
+    // Render twice, check deterministic
+    renderer.render(model, cam);
+    std::vector<float3> fb1;
+    renderer.downloadFramebuffer(fb1);
+
+    renderer.render(model, cam);
+    std::vector<float3> fb2;
+    renderer.downloadFramebuffer(fb2);
+
+    bool match = true;
+    for (size_t i = 0; i < fb1.size(); i++) {
+        if (fabsf(fb1[i].x - fb2[i].x) > 1e-5f ||
+            fabsf(fb1[i].y - fb2[i].y) > 1e-5f ||
+            fabsf(fb1[i].z - fb2[i].z) > 1e-5f) {
+            match = false; break;
+        }
+    }
+    if (match) { PASS(); } else { FAIL("frames differ"); }
+}
+
+// ============================================================
 int main() {
-    printf("=== 3D Gaussian Splatting — Tests (Phases 1+2) ===\n\n");
+    printf("=== 3D Gaussian Splatting — Tests (Phases 1+2+3) ===\n\n");
     printDeviceInfo();
 
     test_gaussian_allocation();
@@ -298,6 +378,9 @@ int main() {
     test_preprocess_kernel();
     test_sort_ordering();
     test_full_pipeline();
+    test_renderer_basic();
+    test_renderer_resize();
+    test_renderer_multi_frame();
 
     printf("\n=== Results: %d passed, %d failed ===\n",
            tests_passed, tests_failed);
