@@ -50,7 +50,7 @@ void GaussianModel::generateRandom(int num_gaussians, int sh_degree,
     std::uniform_real_distribution<float> pos_x(bbox_min.x, bbox_max.x);
     std::uniform_real_distribution<float> pos_y(bbox_min.y, bbox_max.y);
     std::uniform_real_distribution<float> pos_z(bbox_min.z, bbox_max.z);
-    std::uniform_real_distribution<float> scale_dist(-3.0f, -1.0f);  // log-scale: small Gaussians
+    std::uniform_real_distribution<float> scale_dist(-5.0f, -3.0f);  // log-scale: actual scales ~0.007-0.05
     std::normal_distribution<float> sh_dist(0.0f, 0.5f);
     std::uniform_real_distribution<float> opacity_dist(0.5f, 2.0f);  // pre-sigmoid: mostly opaque
 
