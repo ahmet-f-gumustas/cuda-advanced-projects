@@ -55,6 +55,14 @@ void launchInclusiveSum(
     cudaStream_t stream = 0
 );
 
+// CUB scan/sort variants with pre-allocated temp storage (for Renderer)
+size_t getInclusiveSumTempBytes(int N);
+void launchInclusiveSumPreAlloc(
+    void* d_temp, size_t temp_bytes,
+    const int* d_in, uint32_t* d_out,
+    int N, cudaStream_t stream = 0
+);
+
 // Emit (tile_id, depth) keys and gaussian index values for each touched tile
 void launchDuplicateWithKeys(
     int num_gaussians,
@@ -77,6 +85,14 @@ void launchRadixSortPairs(
     uint32_t* d_values_out,
     int N,
     cudaStream_t stream = 0
+);
+
+size_t getRadixSortPairsTempBytes(int N);
+void launchRadixSortPairsPreAlloc(
+    void* d_temp, size_t temp_bytes,
+    uint64_t* d_keys_in, uint64_t* d_keys_out,
+    uint32_t* d_values_in, uint32_t* d_values_out,
+    int N, cudaStream_t stream = 0
 );
 
 // Identify [start, end) ranges of gaussians per tile in sorted key array
