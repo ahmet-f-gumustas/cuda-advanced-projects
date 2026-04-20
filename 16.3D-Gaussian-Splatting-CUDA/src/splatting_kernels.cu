@@ -470,6 +470,23 @@ void launchInclusiveSum(const int* d_in, uint32_t* d_out, int N, cudaStream_t st
     CUDA_CHECK(cudaFree(d_temp));
 }
 
+size_t getInclusiveSumTempBytes(int N) {
+    size_t temp_bytes = 0;
+    int* d_dummy_in = nullptr;
+    uint32_t* d_dummy_out = nullptr;
+    cub::DeviceScan::InclusiveSum(nullptr, temp_bytes, d_dummy_in, d_dummy_out, N);
+    return temp_bytes;
+}
+
+void launchInclusiveSumPreAlloc(
+    void* d_temp, size_t temp_bytes,
+    const int* d_in, uint32_t* d_out,
+    int N, cudaStream_t stream
+) {
+    cub::DeviceScan::InclusiveSum(d_temp, temp_bytes, d_in, d_out, N, stream);
+    CUDA_CHECK_LAST_ERROR();
+}
+
 void launchDuplicateWithKeys(
     int num_gaussians,
     const float2* d_means2D,
@@ -512,6 +529,29 @@ void launchRadixSortPairs(
         d_values_in, d_values_out,
         N, 0, 64, stream);
     CUDA_CHECK(cudaFree(d_temp));
+}
+
+size_t getRadixSortPairsTempBytes(int N) {
+    size_t temp_bytes = 0;
+    uint64_t* k = nullptr;
+    uint32_t* v = nullptr;
+    cub::DeviceRadixSort::SortPairs(
+        nullptr, temp_bytes, k, k, v, v, N, 0, 64);
+    return temp_bytes;
+}
+
+void launchRadixSortPairsPreAlloc(
+    void* d_temp, size_t temp_bytes,
+    uint64_t* d_keys_in, uint64_t* d_keys_out,
+    uint32_t* d_values_in, uint32_t* d_values_out,
+    int N, cudaStream_t stream
+) {
+    cub::DeviceRadixSort::SortPairs(
+        d_temp, temp_bytes,
+        d_keys_in, d_keys_out,
+        d_values_in, d_values_out,
+        N, 0, 64, stream);
+    CUDA_CHECK_LAST_ERROR();
 }
 
 void launchGetTileRanges(
