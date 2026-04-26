@@ -50,6 +50,9 @@ public:
                         const std::vector<float>& opacities,
                         int sh_degree);
 
+    // Load gaussians from a binary 3DGS-format .ply file
+    bool loadFromPLY(const std::string& path);
+
     // Free GPU memory
     void free();
 
