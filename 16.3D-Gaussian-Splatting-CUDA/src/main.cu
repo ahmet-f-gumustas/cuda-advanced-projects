@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "renderer.h"
 #include "ply_reader.h"
+#include "viewer.h"
 
 static void printUsage(const char* prog) {
     printf("Usage: %s [options]\n", prog);
@@ -12,11 +13,12 @@ static void printUsage(const char* prog) {
     printf("  --height <H>          Render height (default 600)\n");
     printf("  --sh <degree>         SH degree for random scenes (0..3, default 3)\n");
     printf("  --out <path>          Output PPM filename (default render.ppm)\n");
+    printf("  --interactive         Open interactive OpenGL viewer\n");
     printf("\n");
 }
 
 int main(int argc, char** argv) {
-    printf("=== 3D Gaussian Splatting — Phase 4 (PLY support) ===\n\n");
+    printf("=== 3D Gaussian Splatting — CUDA ===\n\n");
     printDeviceInfo();
 
     // --- Defaults ---
@@ -25,6 +27,7 @@ int main(int argc, char** argv) {
     int random_count = 50000;
     int width = 800, height = 600;
     int sh_deg = 3;
+    bool interactive = false;
 
     // --- Parse args ---
     for (int i = 1; i < argc; i++) {
@@ -35,6 +38,7 @@ int main(int argc, char** argv) {
         else if (a == "--height" && i+1 < argc) height = std::atoi(argv[++i]);
         else if (a == "--sh"     && i+1 < argc) sh_deg = std::atoi(argv[++i]);
         else if (a == "--out"    && i+1 < argc) out_path = argv[++i];
+        else if (a == "--interactive")          interactive = true;
         else if (a == "--help" || a == "-h")    { printUsage(argv[0]); return 0; }
     }
 
@@ -65,7 +69,18 @@ int main(int argc, char** argv) {
     renderer.init(width, height);
     renderer.setBackgroundColor(make_float3(0.05f, 0.05f, 0.08f));
 
-    // --- Warm up + measure ---
+    // --- Interactive viewer mode ---
+    if (interactive) {
+        Viewer viewer;
+        if (!viewer.init(width, height, "3D Gaussian Splatting — CUDA")) {
+            fprintf(stderr, "Failed to initialize viewer\n");
+            return 1;
+        }
+        viewer.run(model, renderer, camera);
+        return 0;
+    }
+
+    // --- Headless: warm up + measure ---
     const int WARMUP = 2;
     const int FRAMES = 5;
     for (int i = 0; i < WARMUP; i++) renderer.render(model, camera);
@@ -92,7 +107,5 @@ int main(int argc, char** argv) {
            FRAMES, avg, 1000.0f / avg);
 
     renderer.saveFramebufferPPM(out_path);
-
-    printf("\n=== Phase 4 Complete ===\n");
     return 0;
 }
