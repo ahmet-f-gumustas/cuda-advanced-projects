@@ -1,4 +1,5 @@
 #include "gaussian.h"
+#include "ply_reader.h"
 
 // ============================================================
 // GaussianModel implementation
@@ -138,4 +139,12 @@ void GaussianModel::uploadToDevice(const std::vector<float>& positions,
     cudaMemcpyH2D(data_.d_opacities, opacities.data(), num_gaussians);
 
     printf("Uploaded %d Gaussians to GPU (SH degree %d)\n\n", num_gaussians, sh_degree);
+}
+
+bool GaussianModel::loadFromPLY(const std::string& path) {
+    PLYData data;
+    if (!PLYReader::readFile(path, data)) return false;
+    uploadToDevice(data.positions, data.scales, data.rotations,
+                   data.sh_coeffs, data.opacities, data.sh_degree);
+    return true;
 }
