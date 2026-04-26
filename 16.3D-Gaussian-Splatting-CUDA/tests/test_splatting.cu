@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "splatting_kernels.cuh"
 #include "renderer.h"
+#include "ply_reader.h"
 
 int tests_passed = 0;
 int tests_failed = 0;
@@ -366,8 +367,150 @@ void test_renderer_multi_frame() {
 }
 
 // ============================================================
+// Phase 4: PLY tests
+// ============================================================
+
+void test_ply_round_trip() {
+    TEST("PLY synthetic write + read round-trip");
+    const char* path = "/tmp/test_gs_synth.ply";
+    int N = 200;
+    int sh_deg = 2;
+    if (!PLYReader::writeSyntheticPLY(path, N, sh_deg, 7)) {
+        FAIL("write failed"); return;
+    }
+
+    PLYData d;
+    if (!PLYReader::readFile(path, d)) {
+        FAIL("read failed"); return;
+    }
+
+    bool ok = (d.num_points == N) &&
+              (d.sh_degree == sh_deg) &&
+              (d.num_sh_coeffs == (sh_deg+1)*(sh_deg+1)) &&
+              (d.positions.size()  == (size_t)N * 3) &&
+              (d.scales.size()     == (size_t)N * 3) &&
+              (d.rotations.size()  == (size_t)N * 4) &&
+              (d.opacities.size()  == (size_t)N) &&
+              (d.sh_coeffs.size()  == (size_t)N * d.num_sh_coeffs * 3);
+
+    // Quaternions should be unit-length
+    bool quats_unit = true;
+    for (int i = 0; i < N && quats_unit; i++) {
+        float w = d.rotations[i*4+0], x = d.rotations[i*4+1];
+        float y = d.rotations[i*4+2], z = d.rotations[i*4+3];
+        float n = sqrtf(w*w + x*x + y*y + z*z);
+        if (fabsf(n - 1.0f) > 1e-3f) quats_unit = false;
+    }
+
+    if (ok && quats_unit) { PASS(); } else { FAIL("data shape or quats wrong"); }
+}
+
+void test_ply_load_to_model() {
+    TEST("PLY → GaussianModel → render");
+    const char* path = "/tmp/test_gs_load.ply";
+    int N = 500;
+    if (!PLYReader::writeSyntheticPLY(path, N, 3, 11)) {
+        FAIL("write failed"); return;
+    }
+
+    GaussianModel model;
+    if (!model.loadFromPLY(path)) { FAIL("loadFromPLY failed"); return; }
+
+    if (model.getCount() != N || model.getSHDegree() != 3) {
+        FAIL("model parameters wrong"); return;
+    }
+
+    // Render to verify everything is wired up
+    Camera cam;
+    CameraConfig cfg;
+    cfg.width = 128; cfg.height = 128; cfg.fov_y = 60.0f;
+    cam.setConfig(cfg);
+
+    Renderer renderer;
+    renderer.init(128, 128);
+    renderer.render(model, cam);
+    auto& t = renderer.getLastTimings();
+
+    if (t.num_rendered > 0 && t.total_ms > 0.0f) {
+        printf("(%d pairs, %.2f ms) ", t.num_rendered, t.total_ms);
+        PASS();
+    } else {
+        FAIL("render produced no output");
+    }
+}
+
+void test_ply_sh_layout_round_trip() {
+    TEST("PLY SH layout: write known coeffs, verify read-back");
+    // Custom synth with deterministic SH values per-vertex, then check exact match
+    // We'll write the file by hand with 2 vertices and known coefficients
+    const char* path = "/tmp/test_gs_sh.ply";
+    int N = 2;
+    int sh_deg = 1;     // 4 coeffs total → 1 DC + 3 rest per channel
+    int total_coeffs = (sh_deg+1)*(sh_deg+1);
+    int rest_per_chan = total_coeffs - 1;
+    int num_rest = rest_per_chan * 3;
+
+    {
+        std::ofstream fout(path, std::ios::binary);
+        fout << "ply\nformat binary_little_endian 1.0\n";
+        fout << "element vertex " << N << "\n";
+        fout << "property float x\nproperty float y\nproperty float z\n";
+        fout << "property float nx\nproperty float ny\nproperty float nz\n";
+        fout << "property float f_dc_0\nproperty float f_dc_1\nproperty float f_dc_2\n";
+        for (int i = 0; i < num_rest; i++) fout << "property float f_rest_" << i << "\n";
+        fout << "property float opacity\n";
+        fout << "property float scale_0\nproperty float scale_1\nproperty float scale_2\n";
+        fout << "property float rot_0\nproperty float rot_1\nproperty float rot_2\nproperty float rot_3\n";
+        fout << "end_header\n";
+
+        auto wf = [&](float v){ fout.write((char*)&v, 4); };
+
+        // Vertex 0: SH coeffs are [c0=(1,2,3), c1=(4,5,6), c2=(7,8,9), c3=(10,11,12)]
+        // PLY layout: f_dc=(1,2,3), f_rest = R[c1,c2,c3]=4,7,10  G[5,8,11]  B[6,9,12]
+        wf(0); wf(0); wf(0);            // pos
+        wf(0); wf(0); wf(0);            // normals
+        wf(1); wf(2); wf(3);            // f_dc
+        // f_rest: R(4,7,10), G(5,8,11), B(6,9,12)
+        wf(4); wf(7); wf(10);
+        wf(5); wf(8); wf(11);
+        wf(6); wf(9); wf(12);
+        wf(0.5f);                        // opacity
+        wf(-3); wf(-3); wf(-3);          // scales
+        wf(1); wf(0); wf(0); wf(0);      // rot
+
+        // Vertex 1: same scheme + 100
+        wf(1); wf(1); wf(1);
+        wf(0); wf(0); wf(0);
+        wf(101); wf(102); wf(103);
+        wf(104); wf(107); wf(110);
+        wf(105); wf(108); wf(111);
+        wf(106); wf(109); wf(112);
+        wf(1.0f);
+        wf(-2); wf(-2); wf(-2);
+        wf(1); wf(0); wf(0); wf(0);
+    }
+
+    PLYData d;
+    if (!PLYReader::readFile(path, d)) { FAIL("read failed"); return; }
+
+    // After read, sh_coeffs should be coefficient-major interleaved:
+    // V0: [1,2,3, 4,5,6, 7,8,9, 10,11,12]  (size 12)
+    // V1: [101,102,103, 104,105,106, 107,108,109, 110,111,112]
+    float expected_v0[12] = {1,2,3, 4,5,6, 7,8,9, 10,11,12};
+    float expected_v1[12] = {101,102,103, 104,105,106, 107,108,109, 110,111,112};
+
+    bool ok = (d.num_points == 2) && (d.num_sh_coeffs == total_coeffs);
+    for (int i = 0; i < 12 && ok; i++) {
+        if (fabsf(d.sh_coeffs[i] - expected_v0[i]) > 1e-4f) ok = false;
+        if (fabsf(d.sh_coeffs[12 + i] - expected_v1[i]) > 1e-4f) ok = false;
+    }
+
+    if (ok) { PASS(); } else { FAIL("SH layout mismatch"); }
+}
+
+// ============================================================
 int main() {
-    printf("=== 3D Gaussian Splatting — Tests (Phases 1+2+3) ===\n\n");
+    printf("=== 3D Gaussian Splatting — Tests (Phases 1+2+3+4) ===\n\n");
     printDeviceInfo();
 
     test_gaussian_allocation();
@@ -381,6 +524,9 @@ int main() {
     test_renderer_basic();
     test_renderer_resize();
     test_renderer_multi_frame();
+    test_ply_round_trip();
+    test_ply_load_to_model();
+    test_ply_sh_layout_round_trip();
 
     printf("\n=== Results: %d passed, %d failed ===\n",
            tests_passed, tests_failed);
