@@ -488,6 +488,49 @@ void launch_nms(const float* d_boxes, const float* d_scores, const int* d_class_
 }
 
 // ============================================================
+// Ultralytics YOLOv8 raw-output decoder: [1, 4+C, A] -> xyxy + score + class
+// ============================================================
+
+__global__ void yolov8_decode_xywh_kernel(const float* __restrict__ pred,
+                                          int num_classes, int num_anchors,
+                                          float* __restrict__ boxes,
+                                          float* __restrict__ scores,
+                                          int* __restrict__ class_id) {
+    int a = blockIdx.x * blockDim.x + threadIdx.x;
+    if (a >= num_anchors) return;
+    // Channel-major: pred[ch * num_anchors + a]
+    float cx = pred[0 * num_anchors + a];
+    float cy = pred[1 * num_anchors + a];
+    float w  = pred[2 * num_anchors + a];
+    float h  = pred[3 * num_anchors + a];
+    boxes[a * 4 + 0] = cx - 0.5f * w;
+    boxes[a * 4 + 1] = cy - 0.5f * h;
+    boxes[a * 4 + 2] = cx + 0.5f * w;
+    boxes[a * 4 + 3] = cy + 0.5f * h;
+
+    float best = -1.0f;
+    int best_id = 0;
+    for (int c = 0; c < num_classes; ++c) {
+        float s = pred[(4 + c) * num_anchors + a];
+        if (s > best) {
+            best = s;
+            best_id = c;
+        }
+    }
+    scores[a] = best;
+    class_id[a] = best_id;
+}
+
+void launch_yolov8_decode_xywh(const float* d_pred, int num_classes, int num_anchors,
+                               float* d_boxes, float* d_scores, int* d_class_id,
+                               cudaStream_t stream) {
+    int block = 128;
+    int grid = (num_anchors + block - 1) / block;
+    yolov8_decode_xywh_kernel<<<grid, block, 0, stream>>>(
+        d_pred, num_classes, num_anchors, d_boxes, d_scores, d_class_id);
+}
+
+// ============================================================
 // Undo letterbox transform on boxes (xyxy)
 // ============================================================
 

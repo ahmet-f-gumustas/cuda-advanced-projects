@@ -32,6 +32,16 @@ public:
                                int orig_w, int orig_h,
                                cudaStream_t stream = 0);
 
+    // Skip DFL+anchor decode — expects already-decoded boxes (xyxy in net-input
+    // pixel coords) and per-anchor scores/class ids. Used by the TorchScript
+    // path where ultralytics' Detect head has already produced xywh + sigmoid(cls).
+    std::vector<Detection> run_decoded(const float* d_boxes_in, const float* d_scores_in,
+                                       const int* d_class_in, int n_in,
+                                       float score_thresh, float iou_thresh,
+                                       float letterbox_scale, int pad_x, int pad_y,
+                                       int orig_w, int orig_h,
+                                       cudaStream_t stream = 0);
+
 private:
     int total_anchors_;
     int num_classes_;

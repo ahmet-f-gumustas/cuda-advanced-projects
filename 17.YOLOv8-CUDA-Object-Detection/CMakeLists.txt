@@ -18,6 +18,28 @@ if(NOT CUDNN_LIB)
 endif()
 find_path(CUDNN_INCLUDE cudnn.h HINTS /usr/include /usr/local/cuda/include)
 
+# Optional: LibTorch (used by yolo_camera). Picked up from a Python torch install
+# unless overridden by -DTorch_DIR=...
+option(BUILD_CAMERA "Build the LibTorch+OpenCV webcam demo (yolo_camera)" ON)
+if(BUILD_CAMERA)
+    if(NOT Torch_DIR)
+        execute_process(
+            COMMAND python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'share/cmake/Torch'))"
+            OUTPUT_VARIABLE _TORCH_CMAKE OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE _TORCH_RC)
+        if(_TORCH_RC EQUAL 0 AND EXISTS "${_TORCH_CMAKE}")
+            set(Torch_DIR "${_TORCH_CMAKE}")
+            message(STATUS "Discovered Torch_DIR=${Torch_DIR}")
+        endif()
+    endif()
+    find_package(Torch QUIET)
+    find_package(OpenCV QUIET COMPONENTS core imgproc highgui videoio)
+    if(NOT Torch_FOUND OR NOT OpenCV_FOUND)
+        message(WARNING "yolo_camera disabled — Torch_FOUND=${Torch_FOUND} OpenCV_FOUND=${OpenCV_FOUND}")
+        set(BUILD_CAMERA OFF)
+    endif()
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math --expt-relaxed-constexpr -lineinfo")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3")
@@ -71,3 +93,19 @@ set_target_properties(yolo_benchmark PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
+
+# Live webcam demo (LibTorch + OpenCV + custom CUDA pre/post)
+if(BUILD_CAMERA)
+    add_executable(yolo_camera src/yolo_camera.cpp src/ts_pipeline.cpp)
+    target_link_libraries(yolo_camera PRIVATE
+        yolov8_lib
+        ${TORCH_LIBRARIES}
+        ${OpenCV_LIBS}
+    )
+    target_include_directories(yolo_camera PRIVATE ${OpenCV_INCLUDE_DIRS})
+    set_target_properties(yolo_camera PROPERTIES
+        CXX_STANDARD 17
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    )
+endif()
