@@ -114,6 +114,14 @@ void launch_score_filter(const float* d_boxes_in, const float* d_scores_in,
                          int n_in, float score_thresh, int max_out,
                          cudaStream_t stream = 0);
 
+// Decode ultralytics-style YOLOv8 raw output [1, 4+num_classes, num_anchors]
+// into per-anchor xyxy boxes, max-class score, and class id.
+// Layout matches torch tensor with shape (1, 84, 8400) — channel-major, anchor-stride.
+// Class scores are assumed to already be sigmoid'd (ultralytics convention).
+void launch_yolov8_decode_xywh(const float* d_pred, int num_classes, int num_anchors,
+                               float* d_boxes, float* d_scores, int* d_class_id,
+                               cudaStream_t stream = 0);
+
 // Undo letterbox transform on output boxes (in-place).
 // Input boxes are in network-input pixel coords (e.g. 640x640).
 // Maps back to original image coords using inverse of LetterboxParams.
