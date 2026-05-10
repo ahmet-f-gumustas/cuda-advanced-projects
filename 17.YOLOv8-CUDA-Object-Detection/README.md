@@ -85,6 +85,78 @@ Requires CUDA 12.x and cuDNN 9 (Debian/Ubuntu: `apt install libcudnn9-dev`).
 ./test_yolo
 ```
 
+## Live Webcam + Trained `.pt` (yolo_camera)
+
+A second executable, `yolo_camera`, runs a TorchScript-exported ultralytics
+YOLOv8 `.pt` model on a live webcam feed. It uses **LibTorch** for the model
+forward and the **custom CUDA kernels** for all pre/postprocessing (letterbox,
+HWC→CHW, xywh-decode, score filter, NMS, unletterbox).
+
+### Export a `.pt` to TorchScript (one-time, run from `models/`)
+
+```bash
+cd models
+python3 -c "
+from ultralytics import YOLO
+m = YOLO('yolov8n.pt')          # or your own .pt
+m.export(format='torchscript', imgsz=640, device=0)
+"
+# produces yolov8n.torchscript
+```
+
+Important: pass `device=0` so the trace embeds constants on CUDA — otherwise
+LibTorch raises a CPU/GPU mismatch at forward time.
+
+### Run on webcam
+
+```bash
+./yolo_camera --model models/yolov8n.torchscript --cam 0
+              --width 1280 --height 720 --score 0.25 --iou 0.45
+
+# Run a video file instead of a camera
+./yolo_camera --model models/yolov8n.torchscript --video clip.mp4 --save out.mp4
+
+# Headless smoke run (no window — useful over SSH)
+./yolo_camera --model models/yolov8n.torchscript --headless --save out.mp4
+```
+
+Press `q` or `ESC` to quit. `--save` writes an annotated mp4 alongside live display.
+
+### Pipeline timings (RTX 4070 Laptop, yolov8n, 1280×720 webcam input)
+
+| Stage                | ms   |
+|----------------------|------|
+| Upload (BGR→GPU)     | ~0.4 |
+| Preprocess (CUDA)    | ~0.1 |
+| Forward (LibTorch)   | ~5   |
+| Postprocess (CUDA)   | ~0.5 |
+| **End-to-end**       | **~6** |
+
+Detection pipeline alone is well over 150 FPS; observed FPS is capped by the
+USB webcam's native frame rate (30 FPS) and OpenCV frame-grab latency.
+
+### Webcam FPS gotcha — V4L2 `exposure_dynamic_framerate`
+
+On Linux UVC webcams, if you see ~7 FPS even though `v4l2-ctl --list-formats-ext`
+advertises 30 FPS at your resolution, the culprit is almost always
+**`exposure_dynamic_framerate=1`**. This flag lets the autoexposure loop *drop
+the device FPS* (e.g. 30 → 6) to give the sensor more light per frame in
+dim conditions. `cap.read()` blocks until the next frame arrives, so the
+pipeline sits idle ~120 ms each frame regardless of how fast inference is.
+
+`yolo_camera` calls `v4l2_pin_framerate()` at startup to set this control to
+0 via direct ioctl, which forces the camera back to its rated FPS. Manual
+equivalent:
+
+```bash
+v4l2-ctl -d /dev/video0 --set-ctrl=exposure_dynamic_framerate=0
+```
+
+Also worth knowing: V4L2 silently keeps **YUYV** unless you set
+`CAP_PROP_FOURCC` **before** `CAP_PROP_FRAME_WIDTH/HEIGHT`. YUYV caps at 10
+FPS at 1280×720 on most laptop webcams; **MJPG** runs the full 30 FPS. The
+code already does this in the right order.
+
 ## Benchmarks (RTX 4070 Laptop, sm_89, 640×640)
 
 | Stage         | Mean   | p50    | p99    |
