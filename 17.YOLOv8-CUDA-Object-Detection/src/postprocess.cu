@@ -1,5 +1,6 @@
 #include "postprocess.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 #include "cuda_utils.h"
 
 #include <algorithm>
@@ -37,7 +38,7 @@ std::vector<Detection> PostProcessor::run(
     cudaStream_t stream) {
 
     // 1) DFL decode -> per-anchor (l, t, r, b) in feature-grid units
-    launch_dfl_decode(d_reg_flat, d_ltrb_, 1, total_anchors_, reg_max_, stream);
+    dispatch_dfl_decode(d_reg_flat, d_ltrb_, 1, total_anchors_, reg_max_, stream);
 
     // 2) Anchor-free decode -> xyxy in net-input pixel coords + scores + class
     launch_decode_predictions(d_ltrb_, d_cls_flat, d_anchor_xy, d_anchor_stride,
@@ -45,10 +46,10 @@ std::vector<Detection> PostProcessor::run(
                               1, total_anchors_, num_classes_, stream);
 
     // 3) Score-threshold filter -> compact arrays
-    launch_score_filter(d_boxes_all_, d_scores_all_, d_class_all_,
-                        d_boxes_kept_, d_scores_kept_, d_class_kept_,
-                        d_count_, total_anchors_, score_thresh, max_dets_,
-                        stream);
+    dispatch_score_filter(d_boxes_all_, d_scores_all_, d_class_all_,
+                          d_boxes_kept_, d_scores_kept_, d_class_kept_,
+                          d_count_, total_anchors_, score_thresh, max_dets_,
+                          stream);
 
     int h_count = 0;
     CUDA_CHECK(cudaMemcpyAsync(&h_count, d_count_, sizeof(int),
@@ -59,9 +60,9 @@ std::vector<Detection> PostProcessor::run(
     if (kept == 0) return {};
 
     // 4) NMS on the filtered set
-    launch_nms(d_boxes_kept_, d_scores_kept_, d_class_kept_,
-               d_keep_idx_, d_keep_count_,
-               kept, iou_thresh, max_dets_, stream);
+    dispatch_nms(d_boxes_kept_, d_scores_kept_, d_class_kept_,
+                 d_keep_idx_, d_keep_count_,
+                 kept, iou_thresh, max_dets_, stream);
 
     int h_keep = 0;
     CUDA_CHECK(cudaMemcpyAsync(&h_keep, d_keep_count_, sizeof(int),
@@ -112,9 +113,9 @@ std::vector<Detection> PostProcessor::run_decoded(
     int orig_w, int orig_h, cudaStream_t stream) {
 
     // Score-threshold filter into the kept arrays.
-    launch_score_filter(d_boxes_in, d_scores_in, d_class_in,
-                        d_boxes_kept_, d_scores_kept_, d_class_kept_,
-                        d_count_, n_in, score_thresh, max_dets_, stream);
+    dispatch_score_filter(d_boxes_in, d_scores_in, d_class_in,
+                          d_boxes_kept_, d_scores_kept_, d_class_kept_,
+                          d_count_, n_in, score_thresh, max_dets_, stream);
 
     int h_count = 0;
     CUDA_CHECK(cudaMemcpyAsync(&h_count, d_count_, sizeof(int),
@@ -123,8 +124,8 @@ std::vector<Detection> PostProcessor::run_decoded(
     int kept = std::min(h_count, max_dets_);
     if (kept == 0) return {};
 
-    launch_nms(d_boxes_kept_, d_scores_kept_, d_class_kept_,
-               d_keep_idx_, d_keep_count_, kept, iou_thresh, max_dets_, stream);
+    dispatch_nms(d_boxes_kept_, d_scores_kept_, d_class_kept_,
+                 d_keep_idx_, d_keep_count_, kept, iou_thresh, max_dets_, stream);
 
     int h_keep = 0;
     CUDA_CHECK(cudaMemcpyAsync(&h_keep, d_keep_count_, sizeof(int),

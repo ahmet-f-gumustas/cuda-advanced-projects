@@ -130,4 +130,63 @@ void launch_unletterbox_boxes(float* d_boxes, int n,
                               int orig_w, int orig_h,
                               cudaStream_t stream = 0);
 
+// ============================================================
+// v2 — Optimized variants (same outputs, faster paths)
+// Implementations live in src/yolo_kernels_v2.cu.
+// Each v2 launcher is a drop-in replacement for the corresponding v1.
+// ============================================================
+
+// Preprocess
+void launch_hwc_uint8_to_chw_float_v2(const uint8_t* d_src, float* d_dst,
+                                      int w, int h, cudaStream_t stream = 0);
+
+// Fused: BGR uint8 HWC -> RGB float CHW normalized to [0, 1].
+// Removes the host-side BGR->RGB swap in yolo_camera.
+void launch_bgr_uint8_to_rgb_chw_float(const uint8_t* d_src, float* d_dst,
+                                       int w, int h, cudaStream_t stream = 0);
+
+// Activations
+void launch_silu_v2(float* d_data, int n, cudaStream_t stream = 0);
+void launch_bn_silu_v2(float* d_data, const float* d_mean, const float* d_rstd,
+                       const float* d_gamma, const float* d_beta,
+                       int n, int c, int h, int w, cudaStream_t stream = 0);
+
+// Tensor reshape
+void launch_concat_channel_v2(const float* d_a, int ca,
+                              const float* d_b, int cb,
+                              float* d_out, int n, int h, int w,
+                              cudaStream_t stream = 0);
+void launch_upsample_nearest_2x_v2(const float* d_in, float* d_out,
+                                   int n, int c, int h, int w,
+                                   cudaStream_t stream = 0);
+// Shared-memory tiled maxpool (designed for SPPF k=5 with stride=1, same pad).
+void launch_maxpool2d_same_v2(const float* d_in, float* d_out,
+                              int n, int c, int h, int w, int k,
+                              cudaStream_t stream = 0);
+
+// Postprocess
+// reg_max specialized at compile time (16 is the YOLOv8 default).
+void launch_dfl_decode_v2(const float* d_reg, float* d_ltrb,
+                          int n, int anchors, int reg_max,
+                          cudaStream_t stream = 0);
+
+// Warp-aggregated atomic add for compaction.
+void launch_score_filter_v2(const float* d_boxes_in, const float* d_scores_in,
+                            const int* d_class_in,
+                            float* d_boxes_out, float* d_scores_out, int* d_class_out,
+                            int* d_count,
+                            int n_in, float score_thresh, int max_out,
+                            cudaStream_t stream = 0);
+
+// Parallel single-block NMS: K threads compute IoU column, then iterative sweep.
+void launch_nms_v2(const float* d_boxes, const float* d_scores, const int* d_class_id,
+                   int* d_keep, int* d_keep_count,
+                   int k, float iou_thresh, int max_out,
+                   cudaStream_t stream = 0);
+
+// Vectorized class search.
+void launch_yolov8_decode_xywh_v2(const float* d_pred, int num_classes, int num_anchors,
+                                  float* d_boxes, float* d_scores, int* d_class_id,
+                                  cudaStream_t stream = 0);
+
 #endif // YOLO_KERNELS_CUH

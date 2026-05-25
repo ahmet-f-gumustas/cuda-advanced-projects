@@ -1,6 +1,7 @@
 // YOLOv8-CUDA demo: load (or synthesize) image, run detection, draw boxes, save output.
 
 #include "pipeline.h"
+#include "yolo_dispatch.h"
 #include "image_io.h"
 #include "cuda_utils.h"
 
@@ -11,13 +12,15 @@
 static const char* USAGE =
     "Usage:\n"
     "  yolo_detect [--input <path.ppm>] [--output <path.ppm>]\n"
-    "              [--score <thresh>] [--iou <thresh>] [--seed <N>]\n"
-    "If no input is given, a synthetic 800x600 image is generated.\n";
+    "              [--score <thresh>] [--iou <thresh>] [--seed <N>] [--v2]\n"
+    "If no input is given, a synthetic 800x600 image is generated.\n"
+    "--v2 enables the optimized kernel path.\n";
 
 int main(int argc, char** argv) {
     std::string in_path, out_path = "detections.ppm";
     float score_thresh = 0.25f, iou_thresh = 0.45f;
     unsigned seed = 42;
+    bool v2 = false;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--input") == 0 && i + 1 < argc)        in_path = argv[++i];
@@ -25,8 +28,12 @@ int main(int argc, char** argv) {
         else if (std::strcmp(argv[i], "--score") == 0 && i + 1 < argc)   score_thresh = (float)atof(argv[++i]);
         else if (std::strcmp(argv[i], "--iou") == 0 && i + 1 < argc)     iou_thresh = (float)atof(argv[++i]);
         else if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc)    seed = (unsigned)atoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--v2") == 0)                      v2 = true;
         else if (std::strcmp(argv[i], "--help") == 0)                    { printf("%s", USAGE); return 0; }
     }
+
+    set_use_v2_kernels(v2);
+    if (v2) printf("[v2 kernel path enabled]\n");
 
     print_gpu_info();
 

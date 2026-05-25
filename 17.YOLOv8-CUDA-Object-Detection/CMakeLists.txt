@@ -47,6 +47,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-G -g")
 
 set(LIB_SOURCES
     src/yolo_kernels.cu
+    src/yolo_kernels_v2.cu
     src/conv2d.cu
     src/backbone.cu
     src/neck.cu
@@ -90,6 +91,14 @@ set_target_properties(yolo_detect PROPERTIES
 add_executable(yolo_benchmark src/benchmark.cu)
 target_link_libraries(yolo_benchmark PRIVATE yolov8_lib)
 set_target_properties(yolo_benchmark PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+# Per-kernel micro-benchmark (v1 vs v2)
+add_executable(kernel_bench src/kernel_bench.cu)
+target_link_libraries(kernel_bench PRIVATE yolov8_lib)
+set_target_properties(kernel_bench PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )

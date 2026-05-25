@@ -2,6 +2,7 @@
 // with custom CUDA preprocessing + postprocessing.
 
 #include "ts_pipeline.h"
+#include "yolo_dispatch.h"
 #include "cuda_utils.h"
 
 #include <opencv2/core.hpp>
@@ -83,6 +84,7 @@ int main(int argc, char** argv) {
     int cam_w = 1280, cam_h = 720;
     float score = 0.25f, iou = 0.45f;
     bool headless = false;
+    bool v2 = false;
     std::string video_path;
     std::string out_path;
 
@@ -95,14 +97,17 @@ int main(int argc, char** argv) {
         else if (std::strcmp(argv[i], "--score") == 0 && i + 1 < argc) score = (float)atof(argv[++i]);
         else if (std::strcmp(argv[i], "--iou")   == 0 && i + 1 < argc) iou   = (float)atof(argv[++i]);
         else if (std::strcmp(argv[i], "--headless") == 0)              headless = true;
+        else if (std::strcmp(argv[i], "--v2")    == 0)                 v2 = true;
         else if (std::strcmp(argv[i], "--save")  == 0 && i + 1 < argc) out_path = argv[++i];
         else if (std::strcmp(argv[i], "--help")  == 0) {
             printf("Usage: yolo_camera [--model PATH] [--cam IDX | --video PATH]\n"
                    "                   [--width W] [--height H]\n"
-                   "                   [--score T] [--iou T] [--headless] [--save PATH]\n");
+                   "                   [--score T] [--iou T] [--headless] [--save PATH] [--v2]\n");
             return 0;
         }
     }
+    set_use_v2_kernels(v2);
+    if (v2) printf("[v2 kernel path enabled — fused BGR-CHW, parallel NMS, etc.]\n");
 
     setbuf(stdout, nullptr);   // immediate flush — useful when run headless / logged
     setbuf(stderr, nullptr);

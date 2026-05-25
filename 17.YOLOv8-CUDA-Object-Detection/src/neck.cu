@@ -1,6 +1,7 @@
 #include "neck.h"
 #include "cuda_utils.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 
 #include <algorithm>
 
@@ -60,20 +61,20 @@ void Neck::forward(const float* d_p3, const float* d_p4, const float* d_p5,
     int h32 = in_h_ / 32, w32 = in_w_ / 32;
 
     // Top-down path
-    launch_upsample_nearest_2x(d_p5, d_up_p5_, 1, 256, h32, w32, stream);
-    launch_concat_channel(d_up_p5_, 256, d_p4, 128, d_cat_top1_, 1, h16, w16, stream);
+    dispatch_upsample_nearest_2x(d_p5, d_up_p5_, 1, 256, h32, w32, stream);
+    dispatch_concat_channel(d_up_p5_, 256, d_p4, 128, d_cat_top1_, 1, h16, w16, stream);
     conv_p4n_->forward(d_cat_top1_, d_p4_n_, 1, h16, w16, ws, ws_bytes, stream);
 
-    launch_upsample_nearest_2x(d_p4_n_, d_up_p4n_, 1, 128, h16, w16, stream);
-    launch_concat_channel(d_up_p4n_, 128, d_p3, 64, d_cat_top2_, 1, h8, w8, stream);
+    dispatch_upsample_nearest_2x(d_p4_n_, d_up_p4n_, 1, 128, h16, w16, stream);
+    dispatch_concat_channel(d_up_p4n_, 128, d_p3, 64, d_cat_top2_, 1, h8, w8, stream);
     conv_p3o_->forward(d_cat_top2_, d_p3_out_, 1, h8, w8, ws, ws_bytes, stream);
 
     // Bottom-up path
     conv_p3_down_->forward(d_p3_out_, d_p3_down_, 1, h8, w8, ws, ws_bytes, stream);
-    launch_concat_channel(d_p3_down_, 64, d_p4_n_, 128, d_cat_bot1_, 1, h16, w16, stream);
+    dispatch_concat_channel(d_p3_down_, 64, d_p4_n_, 128, d_cat_bot1_, 1, h16, w16, stream);
     conv_p4o_->forward(d_cat_bot1_, d_p4_out_, 1, h16, w16, ws, ws_bytes, stream);
 
     conv_p4_down_->forward(d_p4_out_, d_p4_down_, 1, h16, w16, ws, ws_bytes, stream);
-    launch_concat_channel(d_p4_down_, 128, d_p5, 256, d_cat_bot2_, 1, h32, w32, stream);
+    dispatch_concat_channel(d_p4_down_, 128, d_p5, 256, d_cat_bot2_, 1, h32, w32, stream);
     conv_p5o_->forward(d_cat_bot2_, d_p5_out_, 1, h32, w32, ws, ws_bytes, stream);
 }

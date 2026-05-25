@@ -1,5 +1,6 @@
 #include "ts_pipeline.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 #include "cuda_utils.h"
 
 #include <torch/script.h>
@@ -78,10 +79,11 @@ std::vector<Detection> TorchScriptPipeline::infer_raw(const uint8_t* src, int w,
     CudaTimer t_total, t_up, t_pre, t_fwd, t_post;
     t_total.start(stream_);
 
-    // Upload to GPU.
+    // Upload to GPU. When v2 is on, BGR→RGB is fused into the preprocess
+    // kernel — no host-side swap needed.
     t_up.start(stream_);
-    if (is_bgr) {
-        // Swap BGR→RGB on host first (cheap for camera frames; could be a kernel).
+    if (is_bgr && !use_v2_kernels()) {
+        // v1 path: host BGR→RGB swap (matches original behavior).
         std::vector<uint8_t> rgb(bytes);
         for (size_t i = 0; i < (size_t)w * h; ++i) {
             rgb[i * 3 + 0] = src[i * 3 + 2];
@@ -91,17 +93,25 @@ std::vector<Detection> TorchScriptPipeline::infer_raw(const uint8_t* src, int w,
         CUDA_CHECK(cudaMemcpyAsync(d_src_image_, rgb.data(), bytes,
                                    cudaMemcpyHostToDevice, stream_));
     } else {
+        // v2 path (or already-RGB input): direct upload; channel swap happens
+        // in the preprocess kernel below.
         CUDA_CHECK(cudaMemcpyAsync(d_src_image_, src, bytes,
                                    cudaMemcpyHostToDevice, stream_));
     }
     last_timings_.upload = t_up.stop(stream_);
 
-    // Preprocess on GPU: letterbox + HWC u8 → CHW f32.
+    // Preprocess on GPU: letterbox + (BGR→)RGB CHW float.
     t_pre.start(stream_);
     auto lb = compute_letterbox(w, h, in_w_, in_h_);
     launch_letterbox_uint8(d_src_image_, w, h, d_letterboxed_, in_w_, in_h_,
                            lb, 114, stream_);
-    launch_hwc_uint8_to_chw_float(d_letterboxed_, d_input_chw_, in_w_, in_h_, stream_);
+    if (is_bgr && use_v2_kernels()) {
+        launch_bgr_uint8_to_rgb_chw_float(d_letterboxed_, d_input_chw_,
+                                          in_w_, in_h_, stream_);
+    } else {
+        dispatch_hwc_uint8_to_chw_float(d_letterboxed_, d_input_chw_,
+                                        in_w_, in_h_, stream_);
+    }
     last_timings_.preprocess = t_pre.stop(stream_);
 
     // Build a torch tensor view of d_input_chw_ (no copy).
@@ -118,8 +128,8 @@ std::vector<Detection> TorchScriptPipeline::infer_raw(const uint8_t* src, int w,
     // Decode raw output [1, 4+C, A] -> per-anchor xyxy + score + class on our stream.
     t_post.start(stream_);
     const float* d_pred = out.data_ptr<float>();
-    launch_yolov8_decode_xywh(d_pred, num_classes_, num_anchors_,
-                              d_boxes_all_, d_scores_all_, d_class_all_, stream_);
+    dispatch_yolov8_decode_xywh(d_pred, num_classes_, num_anchors_,
+                                d_boxes_all_, d_scores_all_, d_class_all_, stream_);
 
     auto dets = post_->run_decoded(d_boxes_all_, d_scores_all_, d_class_all_,
                                    num_anchors_, score_thresh_, iou_thresh_,

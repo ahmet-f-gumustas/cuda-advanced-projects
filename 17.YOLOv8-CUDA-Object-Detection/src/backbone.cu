@@ -1,6 +1,7 @@
 #include "backbone.h"
 #include "cuda_utils.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 
 #include <algorithm>
 
@@ -119,14 +120,14 @@ void Backbone::forward(const float* d_input, void* ws, size_t ws_bytes,
     bot1_a_->forward(d_d1_, d_b1a_, 1, h4, w4, ws, ws_bytes, stream);
     bot1_b_->forward(d_b1a_, d_b1b_, 1, h4, w4, ws, ws_bytes, stream);
     launch_add_inplace(d_b1b_, d_d1_, 32 * h4 * w4, stream);
-    launch_silu(d_b1b_, 32 * h4 * w4, stream);
+    dispatch_silu(d_b1b_, 32 * h4 * w4, stream);
 
     // Stage 2 → P3
     down2_->forward(d_b1b_, d_d2_, 1, h4, w4, ws, ws_bytes, stream);
     bot2_a_->forward(d_d2_, d_b2a_, 1, h8, w8, ws, ws_bytes, stream);
     bot2_b_->forward(d_b2a_, d_b2b_, 1, h8, w8, ws, ws_bytes, stream);
     launch_add_inplace(d_b2b_, d_d2_, 64 * h8 * w8, stream);
-    launch_silu(d_b2b_, 64 * h8 * w8, stream);
+    dispatch_silu(d_b2b_, 64 * h8 * w8, stream);
     CUDA_CHECK(cudaMemcpyAsync(d_p3_, d_b2b_,
                                sizeof(float) * 64 * h8 * w8,
                                cudaMemcpyDeviceToDevice, stream));
@@ -136,7 +137,7 @@ void Backbone::forward(const float* d_input, void* ws, size_t ws_bytes,
     bot3_a_->forward(d_d3_, d_b3a_, 1, h16, w16, ws, ws_bytes, stream);
     bot3_b_->forward(d_b3a_, d_b3b_, 1, h16, w16, ws, ws_bytes, stream);
     launch_add_inplace(d_b3b_, d_d3_, 128 * h16 * w16, stream);
-    launch_silu(d_b3b_, 128 * h16 * w16, stream);
+    dispatch_silu(d_b3b_, 128 * h16 * w16, stream);
     CUDA_CHECK(cudaMemcpyAsync(d_p4_, d_b3b_,
                                sizeof(float) * 128 * h16 * w16,
                                cudaMemcpyDeviceToDevice, stream));
@@ -146,19 +147,19 @@ void Backbone::forward(const float* d_input, void* ws, size_t ws_bytes,
     bot4_a_->forward(d_d4_, d_b4a_, 1, h32, w32, ws, ws_bytes, stream);
     bot4_b_->forward(d_b4a_, d_b4b_, 1, h32, w32, ws, ws_bytes, stream);
     launch_add_inplace(d_b4b_, d_d4_, 256 * h32 * w32, stream);
-    launch_silu(d_b4b_, 256 * h32 * w32, stream);
+    dispatch_silu(d_b4b_, 256 * h32 * w32, stream);
 
     // SPPF
     sppf_in_->forward(d_b4b_, d_sppf_in_, 1, h32, w32, ws, ws_bytes, stream);
-    launch_maxpool2d_same(d_sppf_in_, d_sppf_y1_, 1, 128, h32, w32, 5, stream);
-    launch_maxpool2d_same(d_sppf_y1_, d_sppf_y2_, 1, 128, h32, w32, 5, stream);
-    launch_maxpool2d_same(d_sppf_y2_, d_sppf_y3_, 1, 128, h32, w32, 5, stream);
+    dispatch_maxpool2d_same(d_sppf_in_, d_sppf_y1_, 1, 128, h32, w32, 5, stream);
+    dispatch_maxpool2d_same(d_sppf_y1_, d_sppf_y2_, 1, 128, h32, w32, 5, stream);
+    dispatch_maxpool2d_same(d_sppf_y2_, d_sppf_y3_, 1, 128, h32, w32, 5, stream);
     // Four-way concat [y0, y1, y2, y3] -> 512 channels via ping-pong buffers.
-    launch_concat_channel(d_sppf_in_, 128, d_sppf_y1_, 128,
-                          d_sppf_cat_, 1, h32, w32, stream);            // 256 ch
-    launch_concat_channel(d_sppf_cat_, 256, d_sppf_y2_, 128,
-                          d_sppf_cat2_, 1, h32, w32, stream);           // 384 ch
-    launch_concat_channel(d_sppf_cat2_, 384, d_sppf_y3_, 128,
-                          d_sppf_cat_, 1, h32, w32, stream);            // 512 ch
+    dispatch_concat_channel(d_sppf_in_, 128, d_sppf_y1_, 128,
+                            d_sppf_cat_, 1, h32, w32, stream);            // 256 ch
+    dispatch_concat_channel(d_sppf_cat_, 256, d_sppf_y2_, 128,
+                            d_sppf_cat2_, 1, h32, w32, stream);           // 384 ch
+    dispatch_concat_channel(d_sppf_cat2_, 384, d_sppf_y3_, 128,
+                            d_sppf_cat_, 1, h32, w32, stream);            // 512 ch
     sppf_out_->forward(d_sppf_cat_, d_p5_, 1, h32, w32, ws, ws_bytes, stream);
 }

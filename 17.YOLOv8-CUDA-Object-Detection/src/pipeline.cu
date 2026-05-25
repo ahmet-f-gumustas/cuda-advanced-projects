@@ -1,5 +1,6 @@
 #include "pipeline.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 #include "cuda_utils.h"
 
 YOLOv8Pipeline::YOLOv8Pipeline(int in_w, int in_h, int num_classes, int reg_max,
@@ -47,8 +48,8 @@ std::vector<Detection> YOLOv8Pipeline::infer(const Image& img) {
     launch_letterbox_uint8(d_src_image_, img.width, img.height,
                            d_letterboxed_, in_w_, in_h_,
                            lb, 114, stream_);
-    launch_hwc_uint8_to_chw_float(d_letterboxed_, d_input_chw_,
-                                  in_w_, in_h_, stream_);
+    dispatch_hwc_uint8_to_chw_float(d_letterboxed_, d_input_chw_,
+                                    in_w_, in_h_, stream_);
     last_timings_.preprocess = t_pre.stop(stream_);
 
     // Forward

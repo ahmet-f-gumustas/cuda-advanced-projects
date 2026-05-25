@@ -20,13 +20,14 @@ Plus a benchmark (`yolo_benchmark`) and a test suite (`test_yolo`).
 
 1. [Architecture](#architecture)
 2. [Custom CUDA kernels](#custom-cuda-kernels)
-3. [Build](#build)
-4. [File layout](#file-layout)
-5. [Usage — `yolo_detect` (custom CUDA model)](#usage--yolo_detect-custom-cuda-model)
-6. [Usage — `yolo_camera` (webcam + `.pt`)](#usage--yolo_camera-webcam--pt)
-7. [Benchmarks](#benchmarks)
-8. [Troubleshooting & gotchas](#troubleshooting--gotchas)
-9. [Design notes](#design-notes)
+3. [Kernel optimization (v1 vs v2)](#kernel-optimization-v1-vs-v2)
+4. [Build](#build)
+5. [File layout](#file-layout)
+6. [Usage — `yolo_detect` (custom CUDA model)](#usage--yolo_detect-custom-cuda-model)
+7. [Usage — `yolo_camera` (webcam + `.pt`)](#usage--yolo_camera-webcam--pt)
+8. [Benchmarks](#benchmarks)
+9. [Troubleshooting & gotchas](#troubleshooting--gotchas)
+10. [Design notes](#design-notes)
 
 ---
 
@@ -114,6 +115,113 @@ is added via `cudnnAddTensor`; SiLU runs as a custom kernel afterward
 
 ---
 
+## Kernel optimization (v1 vs v2)
+
+Every custom kernel has a `_v2` optimized variant in
+[src/yolo_kernels_v2.cu](src/yolo_kernels_v2.cu). Both versions co-exist; the
+runtime path is selected by a global flag via
+[include/yolo_dispatch.h](include/yolo_dispatch.h):
+
+```cpp
+#include "yolo_dispatch.h"
+set_use_v2_kernels(true);   // route all dispatch_* calls to v2
+```
+
+The pipelines (`YOLOv8Pipeline`, `TorchScriptPipeline`) honor this flag, so
+`./yolo_detect --v2`, `./yolo_camera --v2`, `./yolo_benchmark --v2`, and
+`./yolo_benchmark --compare` all work without code changes.
+
+### Per-kernel speedups (RTX 4070 Laptop, sm_89)
+
+Measured by `kernel_bench` (200 iters × 30 warmup), output verified against
+v1 within float tolerance:
+
+| Kernel                          | v1 (ms) | v2 (ms) | Speedup | Optimization                                |
+|---------------------------------|---------|---------|---------|---------------------------------------------|
+| `nms` (K=300)                   | 4.337   | 0.113   | **38.34×** | Single-block parallel sort + IoU sweep (was tid=0 serial) |
+| `dfl_decode` (8400 anchors)     | 0.019   | 0.010   | 1.85×   | `reg_max=16` template specialization, interleaved sum    |
+| `upsample_nearest_2x`           | 0.0066  | 0.0041  | 1.61×   | 2×2 store, no integer divisions per thread               |
+| `bn_silu` (1×64×80×80)          | 0.0073  | 0.0050  | 1.46×   | `float4` vectorization, fused `scale = rstd*gamma`       |
+| `maxpool2d_same` k=5 (SPPF)     | 0.0084  | 0.0060  | 1.40×   | Shared-memory tiled (16×16 tile + halo)                  |
+| `concat_channel`                | 0.0077  | 0.0057  | 1.32×   | 3D grid (channel as `blockIdx.y`) — no `(idx/hw)%c`      |
+| `silu`                          | 0.022   | 0.018   | 1.23×   | `float4` vectorization                                    |
+| `score_filter` (8400→~4200)     | 0.0045  | 0.0043  | 1.05×   | Block-shared counter + one global atomic per block       |
+| `bgr_uint8_to_rgb_chw` (fused)  | 0.022   | 0.021   | 1.05×   | Fused BGR→RGB + HWC→CHW + normalize (kills host swap)    |
+| `hwc_uint8_to_chw_float`        | 0.0119  | 0.0114  | 1.04×   | `uchar3` vectorized load                                  |
+| `yolov8_decode_xywh`            | 0.0054  | 0.0054  | 1.00×   | `__ldg` read-only (noop on Ada — already cached)         |
+
+The big wins are in the postprocess critical path. `score_filter` and
+`hwc_to_chw` are already bandwidth/atomic-coalescing-bound on Ada, so the
+optimization is largely lost on this architecture (would matter more on
+Pascal/Volta).
+
+### End-to-end speedup (yolo_benchmark --compare, 1280×720 → 640×640)
+
+```
+[v1 (baseline)]
+  Preprocess   mean=0.023  p99=0.052 ms
+  Forward      mean=2.175  p99=2.636 ms
+  Postprocess  mean=1.078  p99=1.429 ms
+  Total        mean=3.592  p99=4.479 ms   →  278 FPS
+
+[v2 (optimized kernels)]
+  Preprocess   mean=0.024  p99=0.157 ms
+  Forward      mean=2.048  p99=2.070 ms
+  Postprocess  mean=0.137  p99=0.316 ms   ← 7.84× faster
+  Total        mean=2.581  p99=3.377 ms   →  387 FPS
+
+[speedup v1 / v2]
+  Preprocess   0.98×       (noise — kernel is already <1% of frame)
+  Forward      1.06×       (cuDNN dominates; our SiLU/concat/maxpool are small)
+  Postprocess  7.84×       (NMS parallelization is the big win)
+  Total        1.39×
+```
+
+### Reproducing
+
+```bash
+# Per-kernel micro-benchmark (v1 vs v2, correctness checked)
+./build/kernel_bench --iters 200 --warmup 30
+
+# Full pipeline comparison
+./build/yolo_benchmark --compare --iters 200 --warmup 30
+
+# Or run a single path
+./build/yolo_benchmark --v2 --iters 200
+./build/yolo_detect --v2 --input photo.ppm
+./build/yolo_camera --v2 --model models/yolov8n.torchscript
+```
+
+### Why some kernels don't improve much on Ada
+
+- **`score_filter`**: hardware warp-atomic-coalescing on SM 8.0+ already
+  collapses multiple `atomicAdd` to the same address into one. The explicit
+  block-level shared-counter design helps on older GPUs but is largely
+  redundant here.
+- **`yolov8_decode_xywh`**: per-anchor loop over 80 classes is already a
+  cache-friendly stride. `__ldg` is a no-op when the data is already in L1.
+- **Preprocess kernels**: 640×640 of `uchar3` is 1.2 MB read + 4.8 MB write
+  → ~6 MB. At ~500 GB/s DRAM, that's 12 μs theoretical floor; v1 already
+  hits 12 μs. No room.
+
+### Notes on numerical equivalence
+
+The v2 kernels produce **algorithmically equivalent** outputs, not
+bit-identical ones. Specific places where the order of FP operations
+differs:
+
+- `dfl_decode_v2` computes `sum_exp` and `sum(i × exp)` in one fused pass
+  instead of two; max diff vs v1 is ~2e-6.
+- `nms_v2` sorts via a stable even-odd transposition; v1 uses iterative
+  max-selection. With equal scores the kept index can differ.
+
+Both `score_filter_v1` and `score_filter_v2` write outputs in
+**non-deterministic** order (atomic-defined) so two consecutive runs of
+the *same path* can produce different detection counts when scores cluster
+near the threshold. This is unrelated to v1/v2 selection.
+
+---
+
 ## Build
 
 ### Requirements
@@ -148,9 +256,10 @@ CMake auto-discovers LibTorch from the Python `torch` package via
 Resulting binaries (in `build/`):
 
 ```
-build/yolo_detect       # custom model demo
-build/yolo_camera       # .pt + webcam (built if LibTorch+OpenCV found)
-build/yolo_benchmark    # synthetic-input throughput test
+build/yolo_detect       # custom model demo            (supports --v2)
+build/yolo_camera       # .pt + webcam (LibTorch+OpenCV) (supports --v2)
+build/yolo_benchmark    # synthetic-input throughput   (supports --v2 / --compare)
+build/kernel_bench      # per-kernel v1 vs v2 micro-benchmark
 build/test_yolo         # unit + integration tests
 ```
 
@@ -164,7 +273,8 @@ build/test_yolo         # unit + integration tests
 ├── README.md
 ├── include/
 │   ├── cuda_utils.h          # CUDA_CHECK, CUDNN_CHECK, CudaTimer
-│   ├── yolo_kernels.cuh      # All custom-kernel declarations
+│   ├── yolo_kernels.cuh      # All custom-kernel declarations (v1 + v2)
+│   ├── yolo_dispatch.h       # Runtime v1/v2 dispatcher + inline wrappers
 │   ├── conv2d.h              # cuDNN Conv2D wrapper (+ SiLU)
 │   ├── backbone.h            # CSPDarknet stem → 4 stages → SPPF
 │   ├── neck.h                # PAN-FPN
@@ -175,7 +285,8 @@ build/test_yolo         # unit + integration tests
 │   ├── ts_pipeline.h         # Image-in → detections-out (LibTorch .pt)
 │   └── image_io.h            # PPM reader/writer, bbox drawer (host)
 ├── src/
-│   ├── yolo_kernels.cu       # All kernel implementations
+│   ├── yolo_kernels.cu       # v1 kernel implementations
+│   ├── yolo_kernels_v2.cu    # v2 optimized kernel implementations
 │   ├── conv2d.cu             # cuDNN Conv2D
 │   ├── backbone.cu
 │   ├── neck.cu
@@ -185,8 +296,9 @@ build/test_yolo         # unit + integration tests
 │   ├── pipeline.cu
 │   ├── ts_pipeline.cpp       # LibTorch glue
 │   ├── image_io.cpp
-│   ├── main.cu               # yolo_detect demo
-│   ├── benchmark.cu          # yolo_benchmark
+│   ├── main.cu               # yolo_detect demo (--v2 flag)
+│   ├── benchmark.cu          # yolo_benchmark (--v2 / --compare)
+│   ├── kernel_bench.cu       # per-kernel v1 vs v2 micro-bench
 │   └── yolo_camera.cpp       # yolo_camera: OpenCV + LibTorch + V4L2 tweaks
 ├── tests/
 │   └── test_yolo.cu          # 14 unit + integration tests

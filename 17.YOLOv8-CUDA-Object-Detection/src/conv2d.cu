@@ -1,6 +1,7 @@
 #include "conv2d.h"
 #include "cuda_utils.h"
 #include "yolo_kernels.cuh"
+#include "yolo_dispatch.h"
 
 #include <random>
 #include <vector>
@@ -111,6 +112,6 @@ void Conv2D::forward(const float* d_in, float* d_out,
     cudnnDestroyTensorDescriptor(out_desc);
 
     if (with_silu_) {
-        launch_silu(d_out, n * out_c_ * oh * ow, stream);
+        dispatch_silu(d_out, n * out_c_ * oh * ow, stream);
     }
 }
