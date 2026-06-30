@@ -51,6 +51,7 @@ This repository demonstrates GPU programming techniques at increasing levels of 
 | 13 | [GPT Transformer Inference](13.GPT-Transformer-Inference/) | GPT decoder with KV Cache, GQA, RoPE, SwiGLU, INT8, speculative decoding | cuBLAS, GQA, Speculative Decoding |
 | 14 | [Stable Diffusion CUDA](14.Stable-Diffusion-CUDA/) | Full pipeline: CLIP encoder + UNet + VAE decoder + DDIM scheduler | cuDNN, cuBLAS, cuRAND |
 | 15 | [Whisper Speech Recognition](15.Whisper-Speech-Recognition-CUDA/) | Whisper-style ASR: Mel spectrogram + Encoder + Decoder + Beam search | cuBLAS, cuFFT, Beam Search |
+| 18 | [FlashAttention CUDA](18.FlashAttention-CUDA/) | From-scratch fused attention: online softmax, O(N) memory, FP16 + recompute backward — 8–10× over naive | Online Softmax, Warp Shuffle, Shared-Mem Tiling |
 
 ### Computer Vision & Video Processing
 
@@ -58,6 +59,7 @@ This repository demonstrates GPU programming techniques at increasing levels of 
 |---|---------|-------------|----------|
 | 02 | [Real-Time Image Denoising](02.Real-Time_Image_Denoising_Engine/) | Bilateral, Non-Local Means, Adaptive denoising at 60 FPS / 1080p | OpenCV, PyQt5, Shared Memory |
 | 10 | [Real-Time Video Stabilization](10.Real-Time_Video_Stabilization/) | Optical flow, Harris corners, RANSAC, Kalman smoothing on GPU | OpenCV, Gaussian Pyramids |
+| 17 | [YOLOv8 CUDA Object Detection](17.YOLOv8-CUDA-Object-Detection/) | From-scratch detector: CSPDarknet + PAN-FPN + anchor-free head, custom NMS, LibTorch webcam demo | cuDNN, LibTorch, Custom NMS |
 
 ### Scientific Computing & Simulation
 
