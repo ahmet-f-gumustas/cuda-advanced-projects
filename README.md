@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://www.kernel.org/)
 
-A collection of **16 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, generative AI, speech recognition, and 3D rendering — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
+A collection of **19 CUDA projects** covering deep learning inference, computer vision, scientific computing, reinforcement learning, generative AI, speech recognition, and 3D rendering — each built from scratch with custom kernels, optimized memory access patterns, and real benchmark data.
 
 [Getting Started](#getting-started) · [Projects](#projects) · [Benchmarks](#performance-benchmarks) · [Learning Path](#learning-path)
 
@@ -52,6 +52,7 @@ This repository demonstrates GPU programming techniques at increasing levels of 
 | 14 | [Stable Diffusion CUDA](14.Stable-Diffusion-CUDA/) | Full pipeline: CLIP encoder + UNet + VAE decoder + DDIM scheduler | cuDNN, cuBLAS, cuRAND |
 | 15 | [Whisper Speech Recognition](15.Whisper-Speech-Recognition-CUDA/) | Whisper-style ASR: Mel spectrogram + Encoder + Decoder + Beam search | cuBLAS, cuFFT, Beam Search |
 | 18 | [FlashAttention CUDA](18.FlashAttention-CUDA/) | From-scratch fused attention: online softmax, O(N) memory, FP16 + recompute backward — 8–10× over naive | Online Softmax, Warp Shuffle, Shared-Mem Tiling |
+| 19 | [Mamba Selective Scan CUDA](19.Mamba-Selective-Scan-CUDA/) | Linear-time selective SSM with custom associative scan, CUB comparison, FP16, and a complete inference block | Warp Scan, CUB BlockScan, Kernel Fusion |
 
 ### Computer Vision & Video Processing
 
@@ -231,6 +232,9 @@ Level 1: Foundations                Level 2: Optimization              Level 3: 
                                                                        14. Stable Diffusion
                                                                        15. Whisper ASR
                                                                        16. 3D Gaussian Splatting
+                                                                       17. YOLOv8 Detection
+                                                                       18. FlashAttention
+                                                                       19. Mamba Selective Scan
 ```
 
 | Level | Focus | You will learn |
